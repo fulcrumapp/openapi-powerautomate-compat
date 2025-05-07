@@ -1,0 +1,16 @@
+name: openapi-powerautomate-compat
+id: ari:cloud:compass:9233df39-e597-47e6-ab42-e07f4d48709c:component/30d7834e-f829-4e6c-9b1b-cc6d8c1e56c5/0374d4a4-f70d-41d3-8812-957b2d1f2f59
+description: This tool converts OpenAPI 3.0 specifications into Swagger 2.0 (OpenAPI 2.0) format while ensuring compatibility with Microsoft Power Automate. It applies necessary transformations to pass Microsoft validation checks.
+configVersion: 1
+typeId: SERVICE
+fields:
+  tier: 4
+links:
+  - name: null
+    type: REPOSITORY
+    url: https://github.com/fulcrumapp/openapi-powerautomate-compat
+relationships:
+  DEPENDS_ON: []
+labels:
+  - source:github
+customFields: null
