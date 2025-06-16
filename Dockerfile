@@ -18,7 +18,7 @@ RUN pip install pyyaml
 
 # Copy package.json and install Node.js project dependencies into /app/node_modules
 COPY package.json ./
-# COPY package-lock.json* ./ # Optional: good practice to copy if it exists
+COPY package-lock.json* ./ # Good practice to copy if it exists
 RUN npm install # This creates /app/node_modules in the image layer
 
 # Declare /app/node_modules as a volume.
