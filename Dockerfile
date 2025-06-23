@@ -17,11 +17,6 @@ WORKDIR /app
 RUN pip install pyyaml
 
 RUN npm install @apiture/openapi-down-convert api-spec-converter
-# Declare /app/node_modules as a volume.
-# This ensures that the node_modules from the image are used and are not
-# created on the host, even if the script re-runs npm install.
-# Writes will go to an anonymous volume managed by Docker.
-VOLUME /app/node_modules
 
 # Copy application scripts
 COPY convert_openapi.sh .
