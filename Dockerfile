@@ -16,11 +16,7 @@ WORKDIR /app
 # Install Python project dependencies (globally in the image)
 RUN pip install pyyaml
 
-# Copy package.json and install Node.js project dependencies into /app/node_modules
-COPY package.json ./
-# COPY package-lock.json* ./ # Optional: good practice to copy if it exists
-RUN npm install # This creates /app/node_modules in the image layer
-
+RUN npm install @apiture/openapi-down-convert api-spec-converter
 # Declare /app/node_modules as a volume.
 # This ensures that the node_modules from the image are used and are not
 # created on the host, even if the script re-runs npm install.
