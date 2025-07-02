@@ -12,11 +12,11 @@ This tool facilitates the conversion of OpenAPI 3.0 specifications to the Swagge
     ```
 
 2.  **Run the Docker container:**
-    Place your OpenAPI 3.1 specification file (e.g., `my-api.json`) in the current directory.
+    Place your OpenAPI 3.1 specification file (e.g., `api-3.1.json`) in the current directory.
     ```bash
     docker run -v "$(pwd):/app" openapi-powerautomate-compat my-api.json
     ```
-    Replace `my-api.json` with the actual name of your OpenAPI file.
+    Rename your file to `api-3.1.json`.
 
 **Option 2: Local Execution**
 
