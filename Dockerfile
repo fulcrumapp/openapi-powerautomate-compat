@@ -19,8 +19,8 @@ RUN pip install pyyaml
 RUN npm install @apiture/openapi-down-convert api-spec-converter
 
 # Copy application scripts
-COPY convert_openapi.sh .
-COPY swagger_cleaner.py .
+COPY scripts/convert_openapi.sh .
+COPY scripts/swagger_cleaner.py scripts/
 
 # Make convert_openapi.sh executable
 RUN chmod +x convert_openapi.sh
