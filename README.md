@@ -158,7 +158,7 @@ All generated files are gitignored and can be safely deleted after import.
 
 ## For More Information
 
-See [.github/copilot-instructions.md](.github/copilot-instructions.md) for:
+See [.github/prompts/convert.prompt.md](.github/prompts/convert.prompt.md) for:
 
 - Detailed step-by-step instructions
 - Troubleshooting guide

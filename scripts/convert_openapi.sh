@@ -35,7 +35,7 @@ fi
 
 # Run swagger_cleaner.py
 # pyyaml is installed globally in the Docker image
-if ! python "${SCRIPT_DIR}/swagger_cleaner.py" "${SWAGGER_PATH}"; then
+if ! python3 "${SCRIPT_DIR}/swagger_cleaner.py" "${SWAGGER_PATH}"; then
     echo "Error: swagger_cleaner.py execution failed!"
     popd >/dev/null
     exit 1

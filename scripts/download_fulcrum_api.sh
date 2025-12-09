@@ -67,9 +67,9 @@ else
     SCHEMA_COUNT=0
     for schema_file in $SCHEMA_FILES; do
         SCHEMA_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}/${SCHEMAS_BASE_PATH}/${schema_file}"
-    OUTPUT_SCHEMA_PATH="${COMPONENTS_DIR}/${schema_file}"
+        OUTPUT_SCHEMA_PATH="${COMPONENTS_DIR}/${schema_file}"
 
-    if curl -f -s -L -o "${OUTPUT_SCHEMA_PATH}" "${SCHEMA_URL}"; then
+        if curl -f -s -L -o "${OUTPUT_SCHEMA_PATH}" "${SCHEMA_URL}"; then
             SCHEMA_COUNT=$((SCHEMA_COUNT + 1))
             echo "  ✓ ${schema_file}"
         else

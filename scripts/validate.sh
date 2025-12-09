@@ -2,8 +2,8 @@
 
 set -e
 
-REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-WORK_DIR_DEFAULT="${REPO_ROOT}/temp/build"
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+WORK_DIR_DEFAULT="${SCRIPT_DIR}/temp/build"
 WORK_DIR="${WORK_DIR:-${WORK_DIR_DEFAULT}}"
 
 API_31_PATH="${WORK_DIR}/api-3.1.json"
