@@ -185,6 +185,74 @@ def filter_endpoints(data: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def find_used_models(data: Dict[str, Any]) -> set:
+    """
+    Find all model names that are referenced in the specification.
+
+    Args:
+        data: The parsed Swagger/OpenAPI specification
+
+    Returns:
+        Set of model names that are used
+    """
+    used_models = set()
+
+    def extract_refs(obj: Any) -> None:
+        """Recursively extract all $ref values."""
+        if isinstance(obj, dict):
+            if "$ref" in obj:
+                ref = obj["$ref"]
+                # Extract model name from reference like "#/definitions/ModelName"
+                if ref.startswith("#/definitions/"):
+                    model_name = ref.replace("#/definitions/", "")
+                    used_models.add(model_name)
+            for value in obj.values():
+                extract_refs(value)
+        elif isinstance(obj, list):
+            for item in obj:
+                extract_refs(item)
+
+    extract_refs(data)
+    return used_models
+
+
+def remove_unused_models(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Remove unused model definitions from the specification.
+
+    Args:
+        data: The parsed Swagger/OpenAPI specification
+
+    Returns:
+        Specification with unused models removed
+    """
+    result = data.copy()
+
+    if "definitions" not in result:
+        return result
+
+    # Find all models that are actually used
+    used_models = find_used_models(data)
+
+    # Keep track of which models were removed
+    removed_models = []
+
+    # Filter definitions to only include used models
+    filtered_definitions = {}
+    for model_name, model_def in result["definitions"].items():
+        if model_name in used_models:
+            filtered_definitions[model_name] = model_def
+        else:
+            removed_models.append(model_name)
+
+    result["definitions"] = filtered_definitions
+
+    if removed_models:
+        print(f"Removed {len(removed_models)} unused model(s): {', '.join(sorted(removed_models))}")
+
+    return result
+
+
 def process_file(input_file: str, output_file: str = None) -> None:
     """
     Process a Swagger/OpenAPI file to:
@@ -215,8 +283,11 @@ def process_file(input_file: str, output_file: str = None) -> None:
         # First filter endpoints
         filtered_data = filter_endpoints(data)
 
+        # Then remove unused models
+        cleaned_models = remove_unused_models(filtered_data)
+
         # Then enhance the endpoints
-        enhanced_data = enhance_endpoints(filtered_data)
+        enhanced_data = enhance_endpoints(cleaned_models)
 
         # Finally process the data to remove anyOf and oneOf
         cleaned_data = remove_anyof_oneof(enhanced_data)
