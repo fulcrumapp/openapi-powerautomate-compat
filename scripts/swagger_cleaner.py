@@ -19,9 +19,10 @@ ENDPOINTS_TO_KEEP = [
 def remove_anyof_oneof(obj: Any) -> Any:
     """
     Recursively remove anyOf and oneOf properties from a dictionary.
+    Preserves x-ms-* extensions for Power Automate compatibility.
     """
     if isinstance(obj, dict):
-        # Create a new dict without anyOf and oneOf
+        # Create a new dict without anyOf and oneOf, but preserve x-ms-* extensions
         result = {k: v for k, v in obj.items() if k not in ["anyOf", "oneOf"]}
 
         # Process remaining items recursively

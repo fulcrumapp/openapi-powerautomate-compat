@@ -41,10 +41,17 @@ if ! python3 "${SCRIPT_DIR}/swagger_cleaner.py" "${SWAGGER_PATH}"; then
     exit 1
 fi
 
+# Run trigger_augmenter.py to add Power Automate trigger extensions
+if ! python3 "${SCRIPT_DIR}/trigger_augmenter.py" "${SWAGGER_CLEAN_PATH}"; then
+    echo "Error: trigger_augmenter.py execution failed!"
+    popd >/dev/null
+    exit 1
+fi
+
 popd >/dev/null
 
-echo "Conversion and cleaning completed successfully!"
+echo "Conversion, cleaning, and trigger augmentation completed successfully!"
 echo "Output files are in ${WORK_DIR}:"
 echo "  - ${API_30_PATH}"
 echo "  - ${SWAGGER_PATH}"
-echo "  - ${SWAGGER_CLEAN_PATH}"
+echo "  - ${SWAGGER_CLEAN_PATH} (with Power Automate trigger extensions)"
