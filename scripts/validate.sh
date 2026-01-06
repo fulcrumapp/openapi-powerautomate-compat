@@ -166,6 +166,51 @@ else
 fi
 echo ""
 
+# Step 10: Verify Power Automate trigger extensions
+echo "Step 10: Verifying Power Automate trigger extensions..."
+TRIGGER_CHECKS_PASSED=true
+
+# Check for x-ms-trigger
+if grep -q "x-ms-trigger:" "${SWAGGER_CLEAN_PATH}"; then
+    echo -e "  ${GREEN}✓${NC} x-ms-trigger extension found"
+else
+    echo -e "  ${RED}✗${NC} x-ms-trigger extension missing"
+    TRIGGER_CHECKS_PASSED=false
+    VALIDATION_PASSED=false
+fi
+
+# Check for x-ms-notification-url
+if grep -q "x-ms-notification-url:" "${SWAGGER_CLEAN_PATH}"; then
+    echo -e "  ${GREEN}✓${NC} x-ms-notification-url extension found"
+else
+    echo -e "  ${RED}✗${NC} x-ms-notification-url extension missing"
+    TRIGGER_CHECKS_PASSED=false
+    VALIDATION_PASSED=false
+fi
+
+# Check for x-ms-notification-content
+if grep -q "x-ms-notification-content:" "${SWAGGER_CLEAN_PATH}"; then
+    echo -e "  ${GREEN}✓${NC} x-ms-notification-content extension found"
+else
+    echo -e "  ${RED}✗${NC} x-ms-notification-content extension missing"
+    TRIGGER_CHECKS_PASSED=false
+    VALIDATION_PASSED=false
+fi
+
+# Check for FulcrumWebhookPayload schema
+if grep -q "FulcrumWebhookPayload:" "${SWAGGER_CLEAN_PATH}"; then
+    echo -e "  ${GREEN}✓${NC} FulcrumWebhookPayload schema defined"
+else
+    echo -e "  ${RED}✗${NC} FulcrumWebhookPayload schema missing"
+    TRIGGER_CHECKS_PASSED=false
+    VALIDATION_PASSED=false
+fi
+
+if [ "$TRIGGER_CHECKS_PASSED" = true ]; then
+    echo -e "${GREEN}✓ All Power Automate trigger extensions present${NC}"
+fi
+echo ""
+
 popd >/dev/null
 
 # Final Summary

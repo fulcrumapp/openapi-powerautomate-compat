@@ -1,3 +1,22 @@
+<!-- OPENSPEC:START -->
+# OpenSpec Instructions
+
+These instructions are for AI assistants working in this project.
+
+Always open `@/openspec/AGENTS.md` when the request:
+- Mentions planning or proposals (words like proposal, spec, change, plan)
+- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
+- Sounds ambiguous and you need the authoritative spec before coding
+
+Use `@/openspec/AGENTS.md` to learn:
+- How to create and apply change proposals
+- Spec format and conventions
+- Project structure and guidelines
+
+Keep this managed block so 'openspec update' can refresh the instructions.
+
+<!-- OPENSPEC:END -->
+
 # Agent Instructions for OpenAPI Power Automate Compatibility Tool
 
 ## Required Validation Steps
@@ -32,6 +51,7 @@ This script automatically:
 - ✓ Checks required fields
 - ✓ Scans for Power Automate incompatibilities
 - ✓ **Checks for OpenAPI Generator warnings (treats warnings as ERRORS)**
+- ✓ **Verifies Power Automate trigger extensions are present**
 - ✓ Provides clear pass/fail results
 
 **Expected Output:**
@@ -80,13 +100,14 @@ rm -rf components/ api-3.1.json api-3.0.json swagger-2.0.yaml swagger-2.0-cleane
 - OpenAPI 3.1 → 3.0 conversion completes
 - OpenAPI 3.0 → Swagger 2.0 conversion completes
 - Cleanup script runs successfully
-- "Conversion and cleaning completed successfully!" message
+- Trigger augmentation script runs successfully
+- "Conversion, cleaning, and trigger augmentation completed successfully!" message
 
 **Expected Files Created:**
 
 - `api-3.0.json` (~254KB)
 - `swagger-2.0.yaml` (~220KB)
-- `swagger-2.0-cleaned.yaml` (~12KB)
+- `swagger-2.0-cleaned.yaml` (~12KB, includes Power Automate trigger extensions)
 
 ### Step 4: Validate OpenAPI 3.0
 
@@ -139,6 +160,18 @@ grep "swagger:" swagger-2.0-cleaned.yaml
 
 # Verify required fields exist
 grep -E "(swagger:|info:|paths:|host:)" swagger-2.0-cleaned.yaml
+
+# Verify Power Automate trigger extensions
+grep "x-ms-trigger:" swagger-2.0-cleaned.yaml
+grep "x-ms-notification-url:" swagger-2.0-cleaned.yaml
+grep "x-ms-notification-content:" swagger-2.0-cleaned.yaml
+grep "FulcrumWebhookPayload:" swagger-2.0-cleaned.yaml
+
+# Verify Location header for webhook management (required for Power Automate trigger lifecycle)
+grep -A 5 "'201':" swagger-2.0-cleaned.yaml | grep -A 3 "headers:" | grep "Location:"
+
+# Verify DELETE endpoint is marked as internal (required for Power Automate trigger cleanup)
+grep -A 10 "DELETE /v2/webhooks/{webhook_id}" swagger-2.0-cleaned.yaml | grep "x-ms-visibility: internal"
 ```
 
 **Expected Output:**
@@ -146,6 +179,8 @@ grep -E "(swagger:|info:|paths:|host:)" swagger-2.0-cleaned.yaml
 - No Python errors
 - `swagger: '2.0'` is present
 - All required fields exist
+- All Power Automate trigger extensions are present (`x-ms-trigger`, `x-ms-notification-url`, `x-ms-notification-content`)
+- `FulcrumWebhookPayload` schema is defined
 
 ## Validation Checklist
 
@@ -156,6 +191,10 @@ Before committing changes, verify:
 - [ ] `./scripts/convert_openapi.sh` completes successfully
 - [ ] `swagger-2.0-cleaned.yaml` passes Swagger CLI validation with "is valid" message
 - [ ] **ZERO validation warnings** from OpenAPI Generator CLI (warnings are treated as errors)
+- [ ] **Power Automate trigger extensions are present** (`x-ms-trigger`, `x-ms-notification-url`, `x-ms-notification-content`)
+- [ ] **FulcrumWebhookPayload schema is defined** in the cleaned spec
+- [ ] **Location header is present** in webhook POST 201 response (required for Power Automate to delete webhooks when flows are removed)
+- [ ] **DELETE webhook endpoint has `x-ms-visibility: internal`** (required for Power Automate trigger cleanup without exposing as user action)
 - [ ] **ZERO markdown linting errors** in all .md files
 - [ ] File sizes are reasonable (api-3.1.json ~260KB, swagger-2.0-cleaned.yaml ~12KB)
 - [ ] All generated files are listed in `.gitignore`
@@ -197,6 +236,13 @@ Before committing changes, verify:
 - **Solution:** `pip install pyyaml`
 - **Verify:** `python3 -c "import yaml; print(yaml.__version__)"`
 
+**Problem:** Trigger augmentation script fails
+
+- **Cause:** Missing webhook endpoint in spec or invalid YAML
+- **Check:** Verify `POST /v2/webhooks.json` exists in `swagger-2.0.yaml`
+- **Verify:** Check that PyYAML is installed
+- **Debug:** Run `python3 scripts/trigger_augmenter.py swagger-2.0-cleaned.yaml` manually
+
 ### Validation Issues
 
 **Problem:** OpenAPI Generator CLI not found
@@ -235,6 +281,7 @@ When making changes to:
 - `scripts/download_fulcrum_api.sh`
 - `scripts/convert_openapi.sh`
 - `scripts/swagger_cleaner.py`
+- `scripts/trigger_augmenter.py`
 - Dockerfile
 
 You **MUST**:
