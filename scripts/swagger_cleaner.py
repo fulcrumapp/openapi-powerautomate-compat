@@ -13,6 +13,7 @@ ENDPOINTS_TO_KEEP = [
     "/v2/records/{record_id}.json/get",
     "/v2/webhooks.json/post",
     "/v2/webhooks/{webhook_id}.json/delete",
+    "/v2/reports.json/post"
 ]
 
 

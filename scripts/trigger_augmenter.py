@@ -345,8 +345,8 @@ if __name__ == "__main__":
         print("\nAugments a Swagger 2.0 specification with Power Automate trigger extensions.")
         print("\nIf output_file is not specified, the input file is updated in-place.")
         print("\nExample:")
-        print("  python trigger_augmenter.py swagger-2.0-cleaned.yaml")
-        print("  python trigger_augmenter.py swagger-2.0.yaml swagger-2.0-triggers.yaml")
+        print("  python trigger_augmenter.py fulcrum-power-automate-connector.yaml")
+        print("  python trigger_augmenter.py swagger-2.0.yaml fulcrum-power-automate-connector.yaml")
         sys.exit(1)
 
     input_file = sys.argv[1]

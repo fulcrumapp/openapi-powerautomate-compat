@@ -57,7 +57,7 @@ Key goals:
 
 **File Organization:**
 - Scripts in `scripts/`
-- Generated files in `scripts/temp/build/` (gitignored)
+- Generated files in `build/` (gitignored)
 - GitHub Copilot prompts in `.github/prompts/`
 - OpenSpec change proposals in `openspec/`
 
@@ -74,7 +74,7 @@ Key goals:
   - Required field presence verification
 
 **Manual Testing:**
-- Import `swagger-2.0-cleaned.yaml` into Microsoft Power Automate
+- Import `fulcrum-power-automate-connector.yaml` into Microsoft Power Automate
 
 ### Git Workflow
 
@@ -116,7 +116,7 @@ Key goals:
 ### Technical Constraints
 - External schema references must be resolved during conversion
 - Swagger 2.0 does not support all OpenAPI 3.x features
-- File sizes expected: `api-3.1.json` ~260KB, `swagger-2.0-cleaned.yaml` ~12KB
+- File sizes expected: `api-3.1.json` ~260KB, `fulcrum-power-automate-connector.yaml` ~12KB
 
 ### Environment Requirements
 - Node.js 22.x for npm packages

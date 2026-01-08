@@ -76,7 +76,7 @@ Download the OpenAPI 3.1 specification from the Fulcrum API repository:
 This script will:
 - Download `rest-api.json` from the `fulcrumapp/api` repository
 - Use the configured branch (default: `main`)
-- Save it as `api-3.1.json` in `scripts/temp/build/`
+- Save it as `api-3.1.json` in `build/`
 - Download all external schema files
 - Validate that the downloaded files are valid JSON
 
@@ -113,18 +113,18 @@ This validation script checks:
 
 1. Open Power Automate: https://make.powerautomate.com
 2. Go to **Data** → **Custom connectors** → **New custom connector** → **Import an OpenAPI file**
-3. Upload `scripts/temp/build/swagger-2.0-cleaned.yaml`
+3. Upload `build/fulcrum-power-automate-connector.yaml`
 4. Configure and test your connector
 
 ## Output Files
 
-All files are generated in `scripts/temp/build/` (configurable via `WORK_DIR` environment variable):
+All files are generated in `build/` (configurable via `WORK_DIR` environment variable):
 
 - `api-3.1.json` - Downloaded OpenAPI 3.1 specification
 - `components/schemas/*.json` - External schema files
 - `api-3.0.json` - Downgraded to OpenAPI 3.0
 - `swagger-2.0.yaml` - Converted to Swagger 2.0
-- `swagger-2.0-cleaned.yaml` - **Final output** ready for Power Automate
+- `fulcrum-power-automate-connector.yaml` - **Final output** ready for Power Automate
 
 ## Troubleshooting
 
@@ -164,14 +164,14 @@ If conversion fails:
 
 If validation fails:
 1. Review the specific error messages from `./scripts/validate.sh`
-2. Check that all required files were generated in `scripts/temp/build/`
+2. Check that all required files were generated in `build/`
 3. Ensure no OpenAPI Generator warnings (warnings are treated as errors)
-4. Verify file sizes are reasonable (~260KB for api-3.1.json, ~12KB for swagger-2.0-cleaned.yaml)
+4. Verify file sizes are reasonable (~260KB for api-3.1.json, ~12KB for fulcrum-power-automate-connector.yaml)
 
 ### Power Automate Import Issues
 
 Common issues and solutions:
-- **"Invalid OpenAPI file"**: Ensure you're using `swagger-2.0-cleaned.yaml`
+- **"Invalid OpenAPI file"**: Ensure you're using `fulcrum-power-automate-connector.yaml`
 - **"Unsupported features"**: The cleanup script should handle most issues automatically
 - **Large file size**: Power Automate has size limits; consider reducing endpoints
 
@@ -180,7 +180,7 @@ Common issues and solutions:
 To remove all generated files:
 
 ```bash
-rm -rf scripts/temp/
+rm -rf build/
 ```
 
 ## Advanced Usage
@@ -205,7 +205,7 @@ BRANCH="main" ./scripts/download_fulcrum_api.sh
 ./scripts/validate.sh
 
 # Clean up
-rm -rf scripts/temp/
+rm -rf build/
 
 # Test a feature branch
 BRANCH="feature/new-endpoints" ./scripts/download_fulcrum_api.sh
@@ -215,7 +215,7 @@ BRANCH="feature/new-endpoints" ./scripts/download_fulcrum_api.sh
 
 ## Notes
 
-- All temporary and output files are in `scripts/temp/` and are gitignored
+- All temporary and output files are in `build/` and are gitignored
 - The download script is idempotent - safe to run multiple times
 - External schema references are automatically downloaded and resolved
 - Unused models are automatically detected and removed during cleanup

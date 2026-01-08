@@ -37,7 +37,7 @@ The conversion pipeline SHALL include trigger augmentation as a distinct process
 
 #### Scenario: Augmentation script execution
 - **WHEN** `convert_openapi.sh` runs the trigger augmenter
-- **THEN** the script SHALL process `swagger-2.0-cleaned.yaml`
+- **THEN** the script SHALL process `fulcrum-power-automate-connector.yaml`
 - **AND** the script SHALL output the augmented spec to the same file (in-place update)
 - **AND** the script SHALL report success or failure with appropriate exit codes
 
