@@ -60,7 +60,7 @@ This script automatically:
 ================================================
 ✓ ALL VALIDATIONS PASSED
 
-The swagger-2.0-cleaned.yaml file is ready for import into Power Automate!
+The fulcrum-power-automate-connector.yaml file is ready for import into Power Automate!
 ================================================
 ```
 
@@ -72,7 +72,7 @@ If you need to run individual steps or debug issues, use the manual workflow bel
 
 ```bash
 # Remove all generated files to start fresh
-rm -rf components/ api-3.1.json api-3.0.json swagger-2.0.yaml swagger-2.0-cleaned.yaml
+rm -rf components/ api-3.1.json api-3.0.json swagger-2.0.yaml fulcrum-power-automate-connector.yaml
 ```
 
 ### Step 2: Download
@@ -107,7 +107,7 @@ rm -rf components/ api-3.1.json api-3.0.json swagger-2.0.yaml swagger-2.0-cleane
 
 - `api-3.0.json` (~254KB)
 - `swagger-2.0.yaml` (~220KB)
-- `swagger-2.0-cleaned.yaml` (~12KB, includes Power Automate trigger extensions)
+- `fulcrum-power-automate-connector.yaml` (~12KB, includes Power Automate trigger extensions)
 
 ### Step 4: Validate OpenAPI 3.0
 
@@ -134,15 +134,15 @@ Validate the final Swagger 2.0 specification:
 
 ```bash
 # Using OpenAPI Generator CLI
-npx @openapitools/openapi-generator-cli validate -i swagger-2.0-cleaned.yaml
+npx @openapitools/openapi-generator-cli validate -i fulcrum-power-automate-connector.yaml
 
 # Using Swagger CLI
-npx swagger-cli validate swagger-2.0-cleaned.yaml
+npx swagger-cli validate fulcrum-power-automate-connector.yaml
 ```
 
 **Expected Output:**
 
-- **CRITICAL**: Must report "swagger-2.0-cleaned.yaml is valid"
+- **CRITICAL**: Must report "fulcrum-power-automate-connector.yaml is valid"
 - No critical errors
 - The conversion process successfully resolves external schema references
 - Swagger CLI may show deprecation warnings (can be ignored)
@@ -153,25 +153,25 @@ Check for Power Automate-specific requirements:
 
 ```bash
 # Check that the file is valid YAML
-python3 -c "import yaml; yaml.safe_load(open('swagger-2.0-cleaned.yaml'))"
+python3 -c "import yaml; yaml.safe_load(open('fulcrum-power-automate-connector.yaml'))"
 
 # Verify Swagger version
-grep "swagger:" swagger-2.0-cleaned.yaml
+grep "swagger:" fulcrum-power-automate-connector.yaml
 
 # Verify required fields exist
-grep -E "(swagger:|info:|paths:|host:)" swagger-2.0-cleaned.yaml
+grep -E "(swagger:|info:|paths:|host:)" fulcrum-power-automate-connector.yaml
 
 # Verify Power Automate trigger extensions
-grep "x-ms-trigger:" swagger-2.0-cleaned.yaml
-grep "x-ms-notification-url:" swagger-2.0-cleaned.yaml
-grep "x-ms-notification-content:" swagger-2.0-cleaned.yaml
-grep "FulcrumWebhookPayload:" swagger-2.0-cleaned.yaml
+grep "x-ms-trigger:" fulcrum-power-automate-connector.yaml
+grep "x-ms-notification-url:" fulcrum-power-automate-connector.yaml
+grep "x-ms-notification-content:" fulcrum-power-automate-connector.yaml
+grep "FulcrumWebhookPayload:" fulcrum-power-automate-connector.yaml
 
 # Verify Location header for webhook management (required for Power Automate trigger lifecycle)
-grep -A 5 "'201':" swagger-2.0-cleaned.yaml | grep -A 3 "headers:" | grep "Location:"
+grep -A 5 "'201':" fulcrum-power-automate-connector.yaml | grep -A 3 "headers:" | grep "Location:"
 
 # Verify DELETE endpoint is marked as internal (required for Power Automate trigger cleanup)
-grep -A 10 "DELETE /v2/webhooks/{webhook_id}" swagger-2.0-cleaned.yaml | grep "x-ms-visibility: internal"
+grep -A 10 "DELETE /v2/webhooks/{webhook_id}" fulcrum-power-automate-connector.yaml | grep "x-ms-visibility: internal"
 ```
 
 **Expected Output:**
@@ -189,14 +189,14 @@ Before committing changes, verify:
 - [ ] `./scripts/download_fulcrum_api.sh` completes without errors
 - [ ] All 28 schema files are downloaded
 - [ ] `./scripts/convert_openapi.sh` completes successfully
-- [ ] `swagger-2.0-cleaned.yaml` passes Swagger CLI validation with "is valid" message
+- [ ] `fulcrum-power-automate-connector.yaml` passes Swagger CLI validation with "is valid" message
 - [ ] **ZERO validation warnings** from OpenAPI Generator CLI (warnings are treated as errors)
 - [ ] **Power Automate trigger extensions are present** (`x-ms-trigger`, `x-ms-notification-url`, `x-ms-notification-content`)
 - [ ] **FulcrumWebhookPayload schema is defined** in the cleaned spec
 - [ ] **Location header is present** in webhook POST 201 response (required for Power Automate to delete webhooks when flows are removed)
 - [ ] **DELETE webhook endpoint has `x-ms-visibility: internal`** (required for Power Automate trigger cleanup without exposing as user action)
 - [ ] **ZERO markdown linting errors** in all .md files
-- [ ] File sizes are reasonable (api-3.1.json ~260KB, swagger-2.0-cleaned.yaml ~12KB)
+- [ ] File sizes are reasonable (api-3.1.json ~260KB, fulcrum-power-automate-connector.yaml ~12KB)
 - [ ] All generated files are listed in `.gitignore`
 - [ ] Prompt files are in `.github/prompts/` (NOT `.prompt.md` in root)
 
@@ -241,7 +241,7 @@ Before committing changes, verify:
 - **Cause:** Missing webhook endpoint in spec or invalid YAML
 - **Check:** Verify `POST /v2/webhooks.json` exists in `swagger-2.0.yaml`
 - **Verify:** Check that PyYAML is installed
-- **Debug:** Run `python3 scripts/trigger_augmenter.py swagger-2.0-cleaned.yaml` manually
+- **Debug:** Run `python3 scripts/trigger_augmenter.py fulcrum-power-automate-connector.yaml` manually
 
 ### Validation Issues
 
@@ -317,16 +317,16 @@ Optional but recommended:
 
 ```bash
 # Check for specific Power Automate incompatibilities
-grep -n "oneOf\|anyOf\|allOf" swagger-2.0-cleaned.yaml
+grep -n "oneOf\|anyOf\|allOf" fulcrum-power-automate-connector.yaml
 
 # Verify no OpenAPI 3.x features remain
-grep -n "OpenAPI\|3\\.0\|3\\.1" swagger-2.0-cleaned.yaml
+grep -n "OpenAPI\|3\\.0\|3\\.1" fulcrum-power-automate-connector.yaml
 
 # Count endpoints
-grep -c "operationId:" swagger-2.0-cleaned.yaml
+grep -c "operationId:" fulcrum-power-automate-connector.yaml
 
 # Check for required security schemes
-grep -A5 "securityDefinitions:" swagger-2.0-cleaned.yaml
+grep -A5 "securityDefinitions:" fulcrum-power-automate-connector.yaml
 ```
 
 ## Version Information

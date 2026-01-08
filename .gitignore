@@ -1,9 +1,10 @@
 node_modules
+build/
 temp/
 components/
 *.tmp
 api-3.1.json
 api-3.0.json
 swagger-2.0.yaml
-swagger-2.0-cleaned.yaml
+fulcrum-power-automate-connector.yaml
 openapitools.json
