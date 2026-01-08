@@ -9,11 +9,30 @@ from typing import Dict, Any, Union, List, Optional
 # Format: ['/path/method', '/another/path/method']
 # Example: ['/pets/get', '/pets/{petId}/get', '/users/post']
 ENDPOINTS_TO_KEEP = [
+    "/v2/attachments/get",
+    "/v2/attachments/{attachment_id}/get",
+    "/v2/audio.json/get",
+    "/v2/forms.json/get",
+    "/v2/forms/{form_id}.json/delete",
+    "/v2/forms/{form_id}.json/get",
+    "/v2/forms/{form_id}.json/post",
+    "/v2/forms/{form_id}.json/put",
+    "/v2/forms/{form_id}/history.json/get",
+    "/v2/photos.json/get",
+    "/v2/photos/{photo_id}.json/get",
+    "/v2/query/post",
     "/v2/records.json/get",
+    "/v2/records.json/post",
+    "/v2/records/{record_id}.json/delete",
     "/v2/records/{record_id}.json/get",
+    "/v2/records/{record_id}.json/put",
+    "/v2/records/{record_id}/history.json/get",
+    "/v2/reports.json/post",
+    "/v2/signatures.json/get",
+    "/v2/signatures/{signature_id}.json/get",
+    "/v2/videos.json/get",
     "/v2/webhooks.json/post",
-    "/v2/webhooks/{webhook_id}.json/delete",
-    "/v2/reports.json/post"
+    "/v2/webhooks/{webhook_id}.json/delete"
 ]
 
 
