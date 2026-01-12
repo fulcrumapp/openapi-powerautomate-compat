@@ -1,0 +1,36 @@
+# Fulcrum Power Automate Connector Configuration
+# This file contains metadata used to generate Microsoft certification package files
+
+# Required fields
+publisher: Fulcrum
+displayName: Fulcrum
+description: |
+  Fulcrum is a mobile data collection platform for field teams.
+  This connector enables integration with Fulcrum's API for managing
+  field data, photos, videos, and more.
+iconBrandColor: "#EB1300"
+category: Field Productivity
+supportEmail: support@fulcrumapp.com
+supportUrl: https://www.fulcrumapp.com/support
+
+# Authentication configuration (for apiProperties.json)
+authentication:
+  type: apiKey
+  parameterName: x-apitoken
+  displayName: Fulcrum API Token
+  description: Your Fulcrum API token from the settings page
+  tooltip: Get your API token from https://web.fulcrumapp.com/settings/api
+
+# README.md sections
+prerequisites:
+  - Active Fulcrum subscription with API access enabled
+
+knownLimitations:
+  - Rate limiting applies based on your Fulcrum plan
+
+# Optional README sections
+gettingStarted: |
+  Create a new connection in Power Automate and enter your API token when prompted.
+
+# Documentation
+documentationUrl: https://developer.fulcrumapp.com

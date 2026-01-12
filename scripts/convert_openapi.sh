@@ -50,8 +50,23 @@ fi
 
 popd >/dev/null
 
-echo "Conversion, cleaning, and trigger augmentation completed successfully!"
+# Run certification_packager.py to generate Microsoft certification artifacts
+CERT_OUTPUT_DIR="${WORK_DIR}/certified-connectors/Fulcrum"
+CONFIG_PATH="${REPO_ROOT}/connector-config.yaml"
+
+if ! python3 "${SCRIPT_DIR}/certification_packager.py" "${SWAGGER_CLEAN_PATH}" "${CONFIG_PATH}" "${CERT_OUTPUT_DIR}"; then
+    echo "Error: certification_packager.py execution failed!"
+    exit 1
+fi
+
+echo ""
+echo "Conversion, cleaning, trigger augmentation, and certification packaging completed successfully!"
 echo "Output files are in ${WORK_DIR}:"
 echo "  - ${API_30_PATH}"
 echo "  - ${SWAGGER_PATH}"
 echo "  - ${SWAGGER_CLEAN_PATH} (with Power Automate trigger extensions)"
+echo ""
+echo "Certification package in ${CERT_OUTPUT_DIR}:"
+echo "  - apiDefinition.swagger.json"
+echo "  - apiProperties.json"
+echo "  - README.md"
