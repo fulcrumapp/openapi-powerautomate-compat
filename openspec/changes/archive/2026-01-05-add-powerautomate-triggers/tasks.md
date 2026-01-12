@@ -28,7 +28,7 @@
 ## 4. Testing & Validation
 
 - [ ] 4.1 Run full pipeline: download → convert → clean → augment
-- [ ] 4.2 Verify `swagger-2.0-cleaned.yaml` passes all validation checks
+- [ ] 4.2 Verify `fulcrum-power-automate-connector.yaml` passes all validation checks
 - [ ] 4.3 Verify trigger extensions are present in output
 - [ ] 4.4 Document manual testing steps for Power Automate import
 

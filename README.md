@@ -60,13 +60,13 @@ The validation script (`./scripts/validate.sh`) checks:
 - ✓ No OpenAPI Generator warnings (warnings treated as errors)
 - ✓ Power Automate compatibility requirements
 
-All generated artifacts are written to `scripts/temp/build/` by default (configurable via the `WORK_DIR` environment variable).
+All generated artifacts are written to `build/` by default (configurable via the `WORK_DIR` environment variable).
 
 ### Convert Your Own API
 
 ```bash
-# 1. Place your OpenAPI 3.1 specification in scripts/temp/build/
-cp /path/to/your/api.json scripts/temp/build/api-3.1.json
+# 1. Place your OpenAPI 3.1 specification in build/
+cp /path/to/your/api.json build/api-3.1.json
 
 # 2. Run the converter
 ./scripts/convert_openapi.sh
@@ -77,9 +77,9 @@ cp /path/to/your/api.json scripts/temp/build/api-3.1.json
 
 ### Working Directory
 
-- Generated artifacts land in `scripts/temp/build/` by default.
+- Generated artifacts land in `build/` by default.
 - Override by exporting `WORK_DIR=/absolute/path` before running the scripts.
-- All files in `scripts/temp/` are automatically gitignored.
+- All files in `build/` are automatically gitignored.
 
 ## Usage Instructions
 
@@ -114,17 +114,17 @@ This will:
 
 2. **Run the Docker container:**
 
-    Place your OpenAPI 3.1 specification file in `scripts/temp/build/` as `api-3.1.json`.
+    Place your OpenAPI 3.1 specification file in `build/` as `api-3.1.json`.
 
     ```bash
-    docker run -v "$(pwd)/scripts/temp/build:/app" openapi-powerautomate-compat
+    docker run -v "$(pwd)/build:/app" openapi-powerautomate-compat
     ```
 
 ### Option 3: Local Execution
 
 - Clone this repository to your local machine.
 
-- Add your OpenAPI 3.1 specification to `scripts/temp/build/` and name the file:
+- Add your OpenAPI 3.1 specification to `build/` and name the file:
    `api-3.1.json`
 
 **Example:**
@@ -140,19 +140,19 @@ This will:
 
 - Upon successful conversion, a confirmation message will be displayed.
 
-- The output file, `scripts/temp/build/swagger-2.0-cleaned.yaml`, is the final result and should be ready for import into Microsoft Power Automate. For example:
+- The output file, `build/fulcrum-power-automate-connector.yaml`, is the final result and should be ready for import into Microsoft Power Automate. For example:
 
 ![Power Automate Import Example](https://github.com/user-attachments/assets/fc9bbac6-44c5-46aa-9f55-32f9cc5e2794)
 
 ## Output Files
 
-All files are generated in `scripts/temp/build/`:
+All files are generated in `build/`:
 
 - `api-3.1.json` - Input OpenAPI 3.1 specification
 - `components/schemas/*.json` - External schema files (if applicable)
 - `api-3.0.json` - Downgraded to OpenAPI 3.0
 - `swagger-2.0.yaml` - Converted to Swagger 2.0
-- `swagger-2.0-cleaned.yaml` - **Final output** ready for Power Automate import
+- `fulcrum-power-automate-connector.yaml` - **Final output** ready for Power Automate import
 
 All generated files are gitignored and can be safely deleted after import.
 

@@ -3,13 +3,14 @@
 set -e
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-WORK_DIR_DEFAULT="${SCRIPT_DIR}/temp/build"
+REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
+WORK_DIR_DEFAULT="${REPO_ROOT}/build"
 WORK_DIR="${WORK_DIR:-${WORK_DIR_DEFAULT}}"
 
 API_31_PATH="${WORK_DIR}/api-3.1.json"
 API_30_PATH="${WORK_DIR}/api-3.0.json"
 SWAGGER_PATH="${WORK_DIR}/swagger-2.0.yaml"
-SWAGGER_CLEAN_PATH="${WORK_DIR}/swagger-2.0-cleaned.yaml"
+SWAGGER_CLEAN_PATH="${WORK_DIR}/fulcrum-power-automate-connector.yaml"
 
 echo "================================================"
 echo "OpenAPI Power Automate Compatibility Validation"

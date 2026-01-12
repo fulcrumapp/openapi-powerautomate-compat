@@ -5,7 +5,7 @@ set -e
 # Resolve repository root so we can work inside a dedicated workspace directory
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
-WORK_DIR_DEFAULT="${SCRIPT_DIR}/temp/build"
+WORK_DIR_DEFAULT="${REPO_ROOT}/build"
 WORK_DIR="${WORK_DIR:-${WORK_DIR_DEFAULT}}"
 
 mkdir -p "${WORK_DIR}"

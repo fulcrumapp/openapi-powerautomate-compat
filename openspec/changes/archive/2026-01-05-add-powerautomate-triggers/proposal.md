@@ -24,4 +24,4 @@ Fulcrum webhooks support events for multiple resource types including records, f
   - `scripts/convert_openapi.sh` - Add call to trigger augmenter
   - `scripts/trigger_augmenter.py` - New file for trigger augmentation
   - `scripts/validate.sh` - Add validation for trigger extensions
-- Output: The final `swagger-2.0-cleaned.yaml` will include trigger extensions, enabling "When a Fulcrum event occurs" trigger in Power Automate flows. The trigger supports all Fulcrum webhook event types: records, forms, choice lists, and classification sets (each with create, update, and delete operations)
+- Output: The final `fulcrum-power-automate-connector.yaml` will include trigger extensions, enabling "When a Fulcrum event occurs" trigger in Power Automate flows. The trigger supports all Fulcrum webhook event types: records, forms, choice lists, and classification sets (each with create, update, and delete operations)
