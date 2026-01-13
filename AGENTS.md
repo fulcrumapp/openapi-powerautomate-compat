@@ -53,6 +53,7 @@ This script automatically:
 - ✓ **Checks for OpenAPI Generator warnings (treats warnings as ERRORS)**
 - ✓ **Verifies Power Automate trigger extensions are present**
 - ✓ **Validates Microsoft certification package (Step 11)**
+- ✓ **Runs paconn validate for Power Automate certification (Step 12)**
 - ✓ Provides clear pass/fail results
 
 **Expected Output:**
@@ -208,6 +209,7 @@ Before committing changes, verify:
 - [ ] **Certification package is generated** in `build/certified-connectors/Fulcrum/`
 - [ ] **All three certification files exist:** `apiDefinition.swagger.json`, `apiProperties.json`, `README.md`
 - [ ] **Certification files pass validation** (Step 11 in validate.sh)
+- [ ] **paconn validate passes** (Step 12 in validate.sh)
 - [ ] **ZERO markdown linting errors** in all .md files
 - [ ] File sizes are reasonable (api-3.1.json ~260KB, fulcrum-power-automate-connector.yaml ~12KB)
 - [ ] All generated files are listed in `.gitignore`
@@ -269,6 +271,18 @@ Before committing changes, verify:
 
 - **Solution:** Install globally: `npm install -g @openapitools/openapi-generator-cli`
 - **Alternative:** Use npx: `npx @openapitools/openapi-generator-cli`
+
+**Problem:** paconn not found
+
+- **Solution:** Install via pip: `pip install paconn`
+- **Note:** paconn is required for Power Automate certification validation (Step 12)
+- **Documentation:** [Power Platform Connector CLI](https://learn.microsoft.com/en-us/connectors/custom-connectors/paconn-cli)
+
+**Problem:** paconn authentication required
+
+- **Solution:** Run `paconn login` (or `python3 -m paconn login`) to authenticate with Power Platform
+- **Note:** Authentication is required to complete Step 12 validation
+- **After login:** Run `./scripts/validate.sh` again to complete validation
 
 **Problem:** Validation reports errors
 
@@ -380,14 +394,6 @@ description: |
   Multi-line description used in README
 iconBrandColor: "#EB1300"  # Hex color for Power Automate branding
 supportEmail: support@fulcrumapp.com
-
-# Authentication (for apiProperties.json)
-authentication:
-  type: apiKey
-  parameterName: x-apitoken
-  displayName: Fulcrum API Token
-  description: Your Fulcrum API token from the settings page
-  tooltip: Get your API token from https://web.fulcrumapp.com/settings/api
 
 # README sections
 prerequisites:

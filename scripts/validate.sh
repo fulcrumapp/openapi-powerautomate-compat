@@ -267,8 +267,58 @@ if [ -f "${CERT_API_PROPS}" ]; then
             # Check for required fields
             if jq -e '.properties.connectionParameters' "${CERT_API_PROPS}" >/dev/null 2>&1; then
                 echo -e "  ${GREEN}✓${NC} connectionParameters field present"
+                
+                # Check for hostUrl connection parameter
+                if jq -e '.properties.connectionParameters.hostUrl' "${CERT_API_PROPS}" >/dev/null 2>&1; then
+                    echo -e "  ${GREEN}✓${NC} hostUrl connection parameter present"
+                    
+                    # Validate hostUrl structure
+                    if jq -e '.properties.connectionParameters.hostUrl.type' "${CERT_API_PROPS}" >/dev/null 2>&1 && \
+                       jq -e '.properties.connectionParameters.hostUrl.uiDefinition' "${CERT_API_PROPS}" >/dev/null 2>&1; then
+                        echo -e "  ${GREEN}✓${NC} hostUrl parameter has required fields"
+                    else
+                        echo -e "  ${RED}✗${NC} hostUrl parameter missing required fields"
+                        CERT_CHECKS_PASSED=false
+                        VALIDATION_PASSED=false
+                    fi
+                else
+                    echo -e "  ${YELLOW}⚠${NC} hostUrl connection parameter not configured"
+                fi
             else
                 echo -e "  ${RED}✗${NC} connectionParameters field missing"
+                CERT_CHECKS_PASSED=false
+                VALIDATION_PASSED=false
+            fi
+            
+            # Check for policy templates
+            if jq -e '.properties.policyTemplateInstances' "${CERT_API_PROPS}" >/dev/null 2>&1; then
+                echo -e "  ${GREEN}✓${NC} policyTemplateInstances field present"
+                
+                # Check if dynamichosturl policy is configured
+                if jq -e '.properties.policyTemplateInstances[] | select(.templateId == "dynamichosturl")' "${CERT_API_PROPS}" >/dev/null 2>&1; then
+                    echo -e "  ${GREEN}✓${NC} dynamichosturl policy template present"
+                    
+                    # Validate policy template structure
+                    if jq -e '.properties.policyTemplateInstances[] | select(.templateId == "dynamichosturl") | .parameters."x-ms-apimTemplateParameter.urlTemplate"' "${CERT_API_PROPS}" >/dev/null 2>&1; then
+                        URL_TEMPLATE=$(jq -r '.properties.policyTemplateInstances[] | select(.templateId == "dynamichosturl") | .parameters."x-ms-apimTemplateParameter.urlTemplate"' "${CERT_API_PROPS}")
+                        
+                        if [[ "$URL_TEMPLATE" =~ ^https:// ]] && [[ "$URL_TEMPLATE" =~ @connectionParameters\( ]]; then
+                            echo -e "  ${GREEN}✓${NC} dynamichosturl URL template valid: ${URL_TEMPLATE}"
+                        else
+                            echo -e "  ${RED}✗${NC} dynamichosturl URL template invalid: ${URL_TEMPLATE}"
+                            CERT_CHECKS_PASSED=false
+                            VALIDATION_PASSED=false
+                        fi
+                    else
+                        echo -e "  ${RED}✗${NC} dynamichosturl policy missing urlTemplate parameter"
+                        CERT_CHECKS_PASSED=false
+                        VALIDATION_PASSED=false
+                    fi
+                else
+                    echo -e "  ${YELLOW}⚠${NC} dynamichosturl policy template not configured"
+                fi
+            else
+                echo -e "  ${RED}✗${NC} policyTemplateInstances field missing"
                 CERT_CHECKS_PASSED=false
                 VALIDATION_PASSED=false
             fi
@@ -309,7 +359,6 @@ if [ -f "${CERT_README}" ]; then
     REQUIRED_SECTIONS=(
         "## Publisher"
         "## Prerequisites"
-        "## Obtaining Credentials"
         "## Known Issues and Limitations"
     )
     
@@ -339,7 +388,96 @@ if [ -f "${CERT_README}" ]; then
 fi
 
 if [ "$CERT_CHECKS_PASSED" = true ]; then
-    echo -e "${GREEN}✓ Certification package is valid and ready for submission${NC}"
+    echo -e "${GREEN}✓ Certification package built${NC}"
+fi
+echo ""
+
+# Step 12: Run paconn validate
+echo "Step 12: Running Power Automate connector validation (paconn)..."
+echo "  (This validates the connector meets Power Automate certification requirements)"
+echo ""
+
+PACONN_CHECKS_PASSED=true
+
+# Check if paconn is installed (try both direct command and python module)
+if command -v paconn &> /dev/null; then
+    PACONN_CMD="paconn"
+elif python3 -m paconn --version &> /dev/null; then
+    PACONN_CMD="python3 -m paconn"
+else
+    echo -e "${RED}✗ paconn not found${NC}"
+    echo ""
+    echo "paconn is required for Power Automate certification validation."
+    echo ""
+    echo "To install paconn:"
+    echo "  pip3 install paconn"
+    echo ""
+    echo "After installation, run validation again:"
+    echo "  ./scripts/validate.sh"
+    echo ""
+    echo "Documentation: https://learn.microsoft.com/en-us/connectors/custom-connectors/paconn-cli"
+    PACONN_CHECKS_PASSED=false
+    VALIDATION_PASSED=false
+    PACONN_CMD=""
+fi
+
+if [ -n "$PACONN_CMD" ]; then
+    # Run paconn validate on the certification directory
+    echo "  Running: $PACONN_CMD validate --api-def ${CERT_API_DEF}"
+    echo ""
+    
+    # Run the command and capture output to a temp file
+    # Temporarily disable exit-on-error since paconn may return non-zero exit code
+    PACONN_TEMP=$(mktemp)
+    set +e
+    eval "$PACONN_CMD validate --api-def \"${CERT_API_DEF}\"" > "${PACONN_TEMP}" 2>&1
+    PACONN_EXIT_CODE=$?
+    set -e
+    PACONN_OUTPUT=$(cat "${PACONN_TEMP}")
+    rm -f "${PACONN_TEMP}"
+    
+    # Display the output
+    if [ -n "$PACONN_OUTPUT" ]; then
+        echo "$PACONN_OUTPUT"
+        echo ""
+    fi
+    
+    # Check if validation failed
+    if [ $PACONN_EXIT_CODE -ne 0 ]; then
+        # Check if the error is authentication-related
+        if echo "$PACONN_OUTPUT" | grep -qi "access token\|authentication\|login\|credentials\|unauthorized\|401"; then
+            echo -e "${RED}✗ paconn validation FAILED - Authentication Required${NC}"
+            echo ""
+            echo "paconn requires authentication to Power Platform for validation."
+            echo ""
+            echo "To complete Step 12:"
+            echo ""
+            echo "  1. Login to Power Platform:"
+            echo ""
+            if [ "$PACONN_CMD" = "paconn" ]; then
+                echo "       paconn login"
+            else
+                echo "       python3 -m paconn login"
+            fi
+            echo ""
+            echo "  2. Follow the authentication prompts (browser will open)"
+            echo ""
+            echo "  3. After successful login, run validation again:"
+            echo ""
+            echo "       ./scripts/validate.sh"
+            echo ""
+            echo "Documentation: https://learn.microsoft.com/en-us/connectors/custom-connectors/paconn-cli"
+        else
+            echo -e "${RED}✗ paconn validation FAILED${NC}"
+            echo ""
+            echo "The connector does not meet Power Automate certification requirements."
+            echo "Please review the errors above and fix them."
+        fi
+        PACONN_CHECKS_PASSED=false
+        VALIDATION_PASSED=false
+    else
+        echo -e "${GREEN}✓ paconn validation PASSED${NC}"
+    fi
 fi
 echo ""
 

@@ -13,13 +13,38 @@ category: Field Productivity
 supportEmail: support@fulcrumapp.com
 supportUrl: https://www.fulcrumapp.com/support
 
-# Authentication configuration (for apiProperties.json)
-authentication:
-  type: apiKey
-  parameterName: x-apitoken
-  displayName: Fulcrum API Token
-  description: Your Fulcrum API token from the settings page
-  tooltip: Get your API token from https://web.fulcrumapp.com/settings/api
+# Connection parameters (for dynamic configuration)
+# These parameters allow users to customize connection behavior beyond authentication
+connectionParameters:
+  api_key:
+    type: securestring
+    uiDefinition:
+      displayName: API Token
+      description: Your Fulcrum API token for authentication
+      tooltip: Generate an API token from your Fulcrum account settings
+      constraints:
+        required: "true"
+        clearText: false
+        tabIndex: 1
+  hostUrl:
+    type: string
+    default: api.fulcrumapp.com
+    uiDefinition:
+      displayName: Host URL
+      description: The API host for your Fulcrum instance
+      tooltip: "Default: api.fulcrumapp.com. For other regions use: api.fulcrumapp-ca.com (Canada), api.fulcrumapp-au.com (Australia), api.fulcrumapp-eu.com (Europe)"
+      constraints:
+        required: false
+        clearText: true
+        tabIndex: 2
+
+# Policy templates (for runtime behavior customization)
+# These templates modify connector behavior at runtime using Microsoft Power Platform policies
+policyTemplates:
+  - templateId: dynamichosturl
+    title: Set API Host URL
+    parameters:
+      x-ms-apimTemplateParameter.urlTemplate: "https://@connectionParameters('hostUrl', 'api.fulcrumapp.com')/api"
 
 # README.md sections
 prerequisites:

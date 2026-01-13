@@ -152,8 +152,7 @@ def augment_webhook_endpoint(
             # This satisfies the validator without affecting Power Automate behavior
             if "schema" in default_response and "properties" in default_response["schema"]:
                 default_response["schema"]["properties"]["_webhook_payload_example"] = {
-                    "$ref": "#/definitions/FulcrumWebhookPayload",
-                    "description": "Example of the payload structure that will be sent to the webhook callback URL"
+                    "$ref": "#/definitions/FulcrumWebhookPayload"
                 }
             
             # Add Location header for Power Automate trigger management
