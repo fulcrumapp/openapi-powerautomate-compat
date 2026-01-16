@@ -66,7 +66,7 @@ def create_webhook_payload_schema() -> Dict[str, Any]:
 
 def augment_webhook_endpoint(
     paths: Dict[str, Any], webhook_path: str = "/v2/webhooks.json"
-) -> tuple[bool, str]:
+) -> tuple[bool, list[str]]:
     """
     Augment the webhook registration endpoint with Power Automate trigger extensions.
 
@@ -75,15 +75,17 @@ def augment_webhook_endpoint(
         webhook_path: The path to the webhook endpoint
 
     Returns:
-        Tuple of (success: bool, message: str)
+        Tuple of (success: bool, messages: list[str])
     """
+    messages = []
+    
     if webhook_path not in paths:
-        return False, f"Webhook endpoint {webhook_path} not found in spec"
+        return False, [f"Webhook endpoint {webhook_path} not found in spec"]
 
     path_item = paths[webhook_path]
 
     if "post" not in path_item:
-        return False, f"POST method not found for {webhook_path}"
+        return False, [f"POST method not found for {webhook_path}"]
 
     post_operation = path_item["post"]
 
@@ -126,13 +128,16 @@ def augment_webhook_endpoint(
             # Check if this is a body parameter with a schema reference
             # For Fulcrum API, the URL is in the body schema, so we mark the entire body
             if param.get("in") == "body" and param.get("name") == "body":
+                # Mark the body parameter as required
+                param["required"] = True
                 # We'll add x-ms-notification-url at the schema level via the definitions
                 # For now, mark that we found the body parameter
                 url_param_found = True
+                messages.append("Marked body parameter as required in webhook POST endpoint")
                 break
 
     if not url_param_found:
-        return False, "No callback URL parameter found in webhook POST endpoint"
+        return False, ["No callback URL parameter found in webhook POST endpoint"]
 
     # Add x-ms-notification-content at the path level
     # This defines what the webhook will POST to the callback URL
@@ -167,7 +172,8 @@ def augment_webhook_endpoint(
                 "x-ms-summary": "Webhook Management URL"
             }
 
-    return True, "Successfully augmented webhook endpoint"
+    messages.append("Successfully augmented webhook endpoint with Power Automate extensions")
+    return True, messages
 
 
 def ensure_webhook_delete_endpoint(paths: Dict[str, Any]) -> tuple[bool, str]:
@@ -242,8 +248,8 @@ def augment_spec(data: Dict[str, Any]) -> tuple[bool, list[str]]:
         return False, ["Error: No paths found in specification"]
 
     # Augment the webhook registration endpoint
-    success, message = augment_webhook_endpoint(data["paths"])
-    messages.append(message)
+    success, endpoint_messages = augment_webhook_endpoint(data["paths"])
+    messages.extend(endpoint_messages)
     if not success:
         return False, messages
 
@@ -268,14 +274,25 @@ def augment_spec(data: Dict[str, Any]) -> tuple[bool, list[str]]:
             "properties" in webhook_req
             and "webhook" in webhook_req["properties"]
             and "properties" in webhook_req["properties"]["webhook"]
-            and "url" in webhook_req["properties"]["webhook"]["properties"]
         ):
-            url_prop = webhook_req["properties"]["webhook"]["properties"]["url"]
-            url_prop["x-ms-notification-url"] = True
-            url_prop["x-ms-visibility"] = "internal"
-            if "x-ms-summary" not in url_prop:
-                url_prop["x-ms-summary"] = "Callback URL"
-            messages.append("Augmented WebhookRequest.webhook.url with x-ms-notification-url")
+            webhook_props = webhook_req["properties"]["webhook"]["properties"]
+            
+            # Augment URL field
+            if "url" in webhook_props:
+                url_prop = webhook_props["url"]
+                url_prop["x-ms-notification-url"] = True
+                url_prop["x-ms-visibility"] = "internal"
+                if "x-ms-summary" not in url_prop:
+                    url_prop["x-ms-summary"] = "Callback URL"
+                messages.append("Augmented WebhookRequest.webhook.url with x-ms-notification-url")
+            
+            # Add default value to name field
+            if "name" in webhook_props:
+                name_prop = webhook_props["name"]
+                name_prop["default"] = "Power Platform Trigger"
+                if "x-ms-summary" not in name_prop:
+                    name_prop["x-ms-summary"] = "Webhook Name"
+                messages.append("Added default value to WebhookRequest.webhook.name")
 
     return True, messages
 
