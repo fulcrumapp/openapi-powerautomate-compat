@@ -59,6 +59,7 @@ The validation script (`./scripts/validate.sh`) checks:
 - ✓ Swagger 2.0 specification passes validation
 - ✓ No OpenAPI Generator warnings (warnings treated as errors)
 - ✓ Power Automate compatibility requirements
+- ✓ Microsoft certification package is complete and valid
 
 All generated artifacts are written to `build/` by default (configurable via the `WORK_DIR` environment variable).
 
@@ -153,8 +154,42 @@ All files are generated in `build/`:
 - `api-3.0.json` - Downgraded to OpenAPI 3.0
 - `swagger-2.0.yaml` - Converted to Swagger 2.0
 - `fulcrum-power-automate-connector.yaml` - **Final output** ready for Power Automate import
+- **`certified-connectors/Fulcrum/`** - Microsoft certification package:
+  - `apiDefinition.swagger.json` - Connector definition in JSON format
+  - `apiProperties.json` - Connection parameters and branding
+  - `README.md` - Connector documentation
 
 All generated files are gitignored and can be safely deleted after import.
+
+## Certification Package
+
+The tool automatically generates a complete Microsoft Power Platform certification package ready for submission to the [PowerPlatformConnectors repository](https://github.com/microsoft/PowerPlatformConnectors).
+
+### Customizing Connector Metadata
+
+Edit `connector-config.yaml` at the repository root to customize:
+
+- Publisher name and support contact
+- Branding (icon color)
+- Authentication configuration
+- README documentation sections
+- Prerequisites and limitations
+
+**Example:**
+
+```yaml
+publisher: Fulcrum
+iconBrandColor: "#EB1300"
+authentication:
+  type: apiKey
+  displayName: Fulcrum API Token
+prerequisites:
+  - Active Fulcrum subscription with API access enabled
+```
+
+After editing, run `./scripts/convert_openapi.sh` to regenerate the certification package.
+
+**Note:** Keep prerequisites and limitations concise. Avoid mentioning specific plan types or redundant setup instructions.
 
 ## For More Information
 

@@ -212,6 +212,137 @@ if [ "$TRIGGER_CHECKS_PASSED" = true ]; then
 fi
 echo ""
 
+# Step 11: Validate certification package
+echo "Step 11: Validating certification package..."
+CERT_DIR="${WORK_DIR}/certified-connectors/Fulcrum"
+CERT_API_DEF="${CERT_DIR}/apiDefinition.swagger.json"
+CERT_API_PROPS="${CERT_DIR}/apiProperties.json"
+CERT_README="${CERT_DIR}/README.md"
+
+CERT_CHECKS_PASSED=true
+
+# Check that all three files exist
+if [ ! -f "${CERT_API_DEF}" ]; then
+    echo -e "  ${RED}✗${NC} apiDefinition.swagger.json not found"
+    CERT_CHECKS_PASSED=false
+    VALIDATION_PASSED=false
+else
+    echo -e "  ${GREEN}✓${NC} apiDefinition.swagger.json exists"
+fi
+
+if [ ! -f "${CERT_API_PROPS}" ]; then
+    echo -e "  ${RED}✗${NC} apiProperties.json not found"
+    CERT_CHECKS_PASSED=false
+    VALIDATION_PASSED=false
+else
+    echo -e "  ${GREEN}✓${NC} apiProperties.json exists"
+fi
+
+if [ ! -f "${CERT_README}" ]; then
+    echo -e "  ${RED}✗${NC} README.md not found"
+    CERT_CHECKS_PASSED=false
+    VALIDATION_PASSED=false
+else
+    echo -e "  ${GREEN}✓${NC} README.md exists"
+fi
+
+# Validate JSON format
+if [ -f "${CERT_API_DEF}" ]; then
+    if command -v jq &> /dev/null; then
+        if jq empty "${CERT_API_DEF}" 2>/dev/null; then
+            echo -e "  ${GREEN}✓${NC} apiDefinition.swagger.json is valid JSON"
+        else
+            echo -e "  ${RED}✗${NC} apiDefinition.swagger.json is invalid JSON"
+            CERT_CHECKS_PASSED=false
+            VALIDATION_PASSED=false
+        fi
+    fi
+fi
+
+if [ -f "${CERT_API_PROPS}" ]; then
+    if command -v jq &> /dev/null; then
+        if jq empty "${CERT_API_PROPS}" 2>/dev/null; then
+            echo -e "  ${GREEN}✓${NC} apiProperties.json is valid JSON"
+            
+            # Check for required fields
+            if jq -e '.properties.connectionParameters' "${CERT_API_PROPS}" >/dev/null 2>&1; then
+                echo -e "  ${GREEN}✓${NC} connectionParameters field present"
+            else
+                echo -e "  ${RED}✗${NC} connectionParameters field missing"
+                CERT_CHECKS_PASSED=false
+                VALIDATION_PASSED=false
+            fi
+            
+            if jq -e '.properties.iconBrandColor' "${CERT_API_PROPS}" >/dev/null 2>&1; then
+                BRAND_COLOR=$(jq -r '.properties.iconBrandColor' "${CERT_API_PROPS}")
+                if [[ "$BRAND_COLOR" =~ ^#[0-9A-Fa-f]{6}$ ]]; then
+                    echo -e "  ${GREEN}✓${NC} iconBrandColor valid: ${BRAND_COLOR}"
+                else
+                    echo -e "  ${RED}✗${NC} iconBrandColor invalid format: ${BRAND_COLOR}"
+                    CERT_CHECKS_PASSED=false
+                    VALIDATION_PASSED=false
+                fi
+            else
+                echo -e "  ${RED}✗${NC} iconBrandColor field missing"
+                CERT_CHECKS_PASSED=false
+                VALIDATION_PASSED=false
+            fi
+        else
+            echo -e "  ${RED}✗${NC} apiProperties.json is invalid JSON"
+            CERT_CHECKS_PASSED=false
+            VALIDATION_PASSED=false
+        fi
+    fi
+fi
+
+# Validate README sections
+if [ -f "${CERT_README}" ]; then
+    README_CHECKS=true
+    
+    if grep -q "^# Fulcrum$" "${CERT_README}"; then
+        echo -e "  ${GREEN}✓${NC} README has correct title"
+    else
+        echo -e "  ${RED}✗${NC} README missing title '# Fulcrum'"
+        README_CHECKS=false
+    fi
+    
+    REQUIRED_SECTIONS=(
+        "## Publisher"
+        "## Prerequisites"
+        "## Obtaining Credentials"
+        "## Known Issues and Limitations"
+    )
+    
+    for section in "${REQUIRED_SECTIONS[@]}"; do
+        if grep -q "^${section}" "${CERT_README}"; then
+            echo -e "  ${GREEN}✓${NC} ${section} section found"
+        else
+            echo -e "  ${RED}✗${NC} ${section} section missing"
+            README_CHECKS=false
+        fi
+    done
+    
+    if [ "$README_CHECKS" = false ]; then
+        CERT_CHECKS_PASSED=false
+        VALIDATION_PASSED=false
+    fi
+    
+    # Check file size
+    README_SIZE=$(wc -c < "${CERT_README}" | tr -d ' ')
+    if [ "$README_SIZE" -lt 500 ]; then
+        echo -e "  ${RED}✗${NC} README.md is too small (${README_SIZE} bytes)"
+        CERT_CHECKS_PASSED=false
+        VALIDATION_PASSED=false
+    else
+        echo -e "  ${GREEN}✓${NC} README.md size is reasonable (${README_SIZE} bytes)"
+    fi
+fi
+
+if [ "$CERT_CHECKS_PASSED" = true ]; then
+    echo -e "${GREEN}✓ Certification package is valid and ready for submission${NC}"
+fi
+echo ""
+
 popd >/dev/null
 
 # Final Summary

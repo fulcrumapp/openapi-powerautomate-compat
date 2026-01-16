@@ -52,6 +52,7 @@ This script automatically:
 - ✓ Scans for Power Automate incompatibilities
 - ✓ **Checks for OpenAPI Generator warnings (treats warnings as ERRORS)**
 - ✓ **Verifies Power Automate trigger extensions are present**
+- ✓ **Validates Microsoft certification package (Step 11)**
 - ✓ Provides clear pass/fail results
 
 **Expected Output:**
@@ -101,13 +102,18 @@ rm -rf components/ api-3.1.json api-3.0.json swagger-2.0.yaml fulcrum-power-auto
 - OpenAPI 3.0 → Swagger 2.0 conversion completes
 - Cleanup script runs successfully
 - Trigger augmentation script runs successfully
-- "Conversion, cleaning, and trigger augmentation completed successfully!" message
+- Certification packaging completes successfully
+- Success message with output file locations
 
 **Expected Files Created:**
 
 - `api-3.0.json` (~254KB)
 - `swagger-2.0.yaml` (~220KB)
 - `fulcrum-power-automate-connector.yaml` (~12KB, includes Power Automate trigger extensions)
+- **Certification package in `build/certified-connectors/Fulcrum/`:**
+  - `apiDefinition.swagger.json` (~44KB, JSON format)
+  - `apiProperties.json` (~500 bytes, connection parameters and branding)
+  - `README.md` (~1.5KB, Microsoft certification template)
 
 ### Step 4: Validate OpenAPI 3.0
 
@@ -172,6 +178,9 @@ grep -A 5 "'201':" fulcrum-power-automate-connector.yaml | grep -A 3 "headers:" 
 
 # Verify DELETE endpoint is marked as internal (required for Power Automate trigger cleanup)
 grep -A 10 "DELETE /v2/webhooks/{webhook_id}" fulcrum-power-automate-connector.yaml | grep "x-ms-visibility: internal"
+
+# Verify certification package files
+ls -lh build/certified-connectors/Fulcrum/
 ```
 
 **Expected Output:**
@@ -181,6 +190,7 @@ grep -A 10 "DELETE /v2/webhooks/{webhook_id}" fulcrum-power-automate-connector.y
 - All required fields exist
 - All Power Automate trigger extensions are present (`x-ms-trigger`, `x-ms-notification-url`, `x-ms-notification-content`)
 - `FulcrumWebhookPayload` schema is defined
+- **Certification package directory contains 3 files:** `apiDefinition.swagger.json`, `apiProperties.json`, `README.md`
 
 ## Validation Checklist
 
@@ -195,6 +205,9 @@ Before committing changes, verify:
 - [ ] **FulcrumWebhookPayload schema is defined** in the cleaned spec
 - [ ] **Location header is present** in webhook POST 201 response (required for Power Automate to delete webhooks when flows are removed)
 - [ ] **DELETE webhook endpoint has `x-ms-visibility: internal`** (required for Power Automate trigger cleanup without exposing as user action)
+- [ ] **Certification package is generated** in `build/certified-connectors/Fulcrum/`
+- [ ] **All three certification files exist:** `apiDefinition.swagger.json`, `apiProperties.json`, `README.md`
+- [ ] **Certification files pass validation** (Step 11 in validate.sh)
 - [ ] **ZERO markdown linting errors** in all .md files
 - [ ] File sizes are reasonable (api-3.1.json ~260KB, fulcrum-power-automate-connector.yaml ~12KB)
 - [ ] All generated files are listed in `.gitignore`
@@ -243,6 +256,13 @@ Before committing changes, verify:
 - **Verify:** Check that PyYAML is installed
 - **Debug:** Run `python3 scripts/trigger_augmenter.py fulcrum-power-automate-connector.yaml` manually
 
+**Problem:** Certification packager fails
+
+- **Cause:** Missing or invalid `connector-config.yaml`
+- **Check:** Verify `connector-config.yaml` exists at repository root
+- **Verify:** Check that required fields are present (publisher, displayName, iconBrandColor, etc.)
+- **Debug:** Run `python3 scripts/certification_packager.py build/fulcrum-power-automate-connector.yaml connector-config.yaml build/certified-connectors/Fulcrum` manually
+
 ### Validation Issues
 
 **Problem:** OpenAPI Generator CLI not found
@@ -282,6 +302,8 @@ When making changes to:
 - `scripts/convert_openapi.sh`
 - `scripts/swagger_cleaner.py`
 - `scripts/trigger_augmenter.py`
+- `scripts/certification_packager.py`
+- `connector-config.yaml`
 - Dockerfile
 
 You **MUST**:
@@ -343,3 +365,51 @@ npx api-spec-converter --version
 ```
 
 This ensures reproducibility and helps diagnose version-specific issues.
+
+## Connector Configuration
+
+The `connector-config.yaml` file at the repository root contains metadata used to generate Microsoft certification artifacts. This file centralizes all connector-specific information in one place.
+
+### Configuration Structure
+
+```yaml
+# Required fields
+publisher: Fulcrum
+displayName: Fulcrum
+description: |
+  Multi-line description used in README
+iconBrandColor: "#EB1300"  # Hex color for Power Automate branding
+supportEmail: support@fulcrumapp.com
+
+# Authentication (for apiProperties.json)
+authentication:
+  type: apiKey
+  parameterName: x-apitoken
+  displayName: Fulcrum API Token
+  description: Your Fulcrum API token from the settings page
+  tooltip: Get your API token from https://web.fulcrumapp.com/settings/api
+
+# README sections
+prerequisites:
+  - Active Fulcrum subscription with API access enabled
+
+knownLimitations:
+  - Rate limiting applies based on your Fulcrum plan
+
+# Optional sections
+gettingStarted: |
+  Instructions for creating a connection
+faqs:
+  - question: How do I get an API token?
+    answer: Log in to Fulcrum, navigate to Settings > API, and generate a new token.
+```
+
+### Customizing Connector Metadata
+
+To update connector branding, documentation, or authentication:
+
+1. Edit `connector-config.yaml` at the repository root
+2. Run `./scripts/convert_openapi.sh` to regenerate certification files
+3. Run `./scripts/validate.sh` to verify changes
+
+**Note:** Keep prerequisites and limitations concise. Avoid mentioning specific plan types or redundant setup instructions between "Obtaining Credentials" and "Getting Started" sections.
