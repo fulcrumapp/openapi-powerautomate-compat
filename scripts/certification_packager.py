@@ -39,7 +39,6 @@ def validate_config(config: Dict[str, Any]) -> None:
         'description',
         'iconBrandColor',
         'supportEmail',
-        'authentication',
         'prerequisites',
         'knownLimitations'
     ]
@@ -50,24 +49,40 @@ def validate_config(config: Dict[str, Any]) -> None:
         print(f"ERROR: Missing required fields in connector-config.yaml: {', '.join(missing_fields)}", file=sys.stderr)
         sys.exit(1)
     
-    # Validate authentication config
-    auth = config.get('authentication', {})
-    auth_required = ['type', 'displayName', 'description']
-    auth_missing = [field for field in auth_required if field not in auth or not auth[field]]
+    # Validate connection parameters if present
+    if 'connectionParameters' in config:
+        for param_name, param_config in config['connectionParameters'].items():
+            if 'type' not in param_config:
+                print(f"ERROR: Connection parameter '{param_name}' missing 'type'", file=sys.stderr)
+                sys.exit(1)
+            if 'uiDefinition' not in param_config:
+                print(f"ERROR: Connection parameter '{param_name}' missing 'uiDefinition'", file=sys.stderr)
+                sys.exit(1)
     
-    if auth_missing:
-        print(f"ERROR: Missing required authentication fields: {', '.join(auth_missing)}", file=sys.stderr)
-        sys.exit(1)
+    # Validate policy templates if present
+    if 'policyTemplates' in config:
+        for template in config['policyTemplates']:
+            if 'templateId' not in template:
+                print(f"ERROR: Policy template missing 'templateId'", file=sys.stderr)
+                sys.exit(1)
+            if 'parameters' not in template:
+                print(f"ERROR: Policy template missing 'parameters'", file=sys.stderr)
+                sys.exit(1)
 
 
-def generate_api_definition(swagger_spec: Dict[str, Any], output_path: str) -> None:
+def generate_api_definition(swagger_spec: Dict[str, Any], config: Dict[str, Any], output_path: str) -> None:
     """
     Generate apiDefinition.swagger.json by converting YAML to JSON.
     
     Args:
         swagger_spec: The parsed Swagger specification
+        config: The connector configuration
         output_path: Path where the JSON file should be written
     """
+    # Update the title to match the displayName from config
+    if 'info' in swagger_spec and 'displayName' in config:
+        swagger_spec['info']['title'] = config['displayName']
+    
     try:
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(swagger_spec, f, indent=2)
@@ -85,31 +100,39 @@ def generate_api_properties(config: Dict[str, Any], output_path: str) -> None:
         config: The connector configuration
         output_path: Path where the JSON file should be written
     """
-    auth = config['authentication']
-    
-    # Build connection parameters based on authentication type
+    # Build connection parameters - only from explicit connectionParameters config
     connection_parameters = {}
     
-    if auth['type'] == 'apiKey':
-        param_name = auth.get('parameterName', 'api_key')
-        connection_parameters[param_name] = {
-            "type": "securestring",
-            "uiDefinition": {
-                "displayName": auth['displayName'],
-                "description": auth['description'],
-                "tooltip": auth.get('tooltip', auth['description']),
-                "constraints": {
-                    "required": "true"
-                }
+    # Add connection parameters from config (excluding authentication)
+    if 'connectionParameters' in config:
+        for param_name, param_config in config['connectionParameters'].items():
+            connection_parameters[param_name] = {
+                "type": param_config['type'],
+                "uiDefinition": param_config['uiDefinition']
             }
-        }
+            # Add default value if specified
+            if 'default' in param_config:
+                if 'constraints' not in connection_parameters[param_name]['uiDefinition']:
+                    connection_parameters[param_name]['uiDefinition']['constraints'] = {}
+                connection_parameters[param_name]['uiDefinition']['constraints']['default'] = param_config['default']
+    
+    # Build policy template instances
+    policy_template_instances = []
+    if 'policyTemplates' in config:
+        for template_config in config['policyTemplates']:
+            policy_instance = {
+                "templateId": template_config['templateId'],
+                "title": template_config.get('title', template_config['templateId']),
+                "parameters": template_config['parameters']
+            }
+            policy_template_instances.append(policy_instance)
     
     api_properties = {
         "properties": {
             "connectionParameters": connection_parameters,
             "iconBrandColor": config['iconBrandColor'],
             "capabilities": [],
-            "policyTemplateInstances": []
+            "policyTemplateInstances": policy_template_instances
         }
     }
     
@@ -152,15 +175,16 @@ def generate_readme(config: Dict[str, Any], swagger_spec: Dict[str, Any], output
         readme_lines.append(f"- {prereq}")
     readme_lines.append("")
     
-    # Obtaining Credentials
-    readme_lines.append("## Obtaining Credentials")
-    readme_lines.append("")
-    auth = config['authentication']
-    readme_lines.append(auth['description'])
-    readme_lines.append("")
-    if 'tooltip' in auth:
-        readme_lines.append(auth['tooltip'])
+    # Obtaining Credentials (optional - only if authentication config exists)
+    if 'authentication' in config:
+        readme_lines.append("## Obtaining Credentials")
         readme_lines.append("")
+        auth = config['authentication']
+        readme_lines.append(auth['description'])
+        readme_lines.append("")
+        if 'tooltip' in auth:
+            readme_lines.append(auth['tooltip'])
+            readme_lines.append("")
     
     # Getting Started (optional)
     if 'gettingStarted' in config and config['gettingStarted']:
@@ -168,6 +192,29 @@ def generate_readme(config: Dict[str, Any], swagger_spec: Dict[str, Any], output
         readme_lines.append("")
         readme_lines.append(config['gettingStarted'].strip())
         readme_lines.append("")
+        
+        # Add custom host URL documentation if hostUrl connection parameter exists
+        if 'connectionParameters' in config and 'hostUrl' in config['connectionParameters']:
+            readme_lines.append("### Custom Host URLs")
+            readme_lines.append("")
+            readme_lines.append("By default, the connector uses the production Fulcrum API at `api.fulcrumapp.com`. "
+                              "For other regions or custom deployments, you can specify a different host URL "
+                              "when creating your connection.")
+            readme_lines.append("")
+            readme_lines.append("**Regional Endpoints:**")
+            readme_lines.append("- United States (default): `api.fulcrumapp.com`")
+            readme_lines.append("- Canada: `api.fulcrumapp-ca.com`")
+            readme_lines.append("- Australia: `api.fulcrumapp-au.com`")
+            readme_lines.append("- Europe: `api.fulcrumapp-eu.com`")
+            readme_lines.append("")
+            readme_lines.append("**Format:** Enter only the hostname without protocol or path. The connector will "
+                              "automatically use HTTPS and the correct API path.")
+            readme_lines.append("")
+            readme_lines.append("**Troubleshooting:**")
+            readme_lines.append("- Ensure your custom host is accessible from your network")
+            readme_lines.append("- Verify the hostname is correct (no typos)")
+            readme_lines.append("- Confirm your API token is valid for the specified host")
+            readme_lines.append("")
     
     # Known Issues and Limitations
     readme_lines.append("## Known Issues and Limitations")
@@ -217,7 +264,7 @@ def main():
     print("Generating certification package files...")
     
     api_definition_path = os.path.join(output_dir, "apiDefinition.swagger.json")
-    generate_api_definition(swagger_spec, api_definition_path)
+    generate_api_definition(swagger_spec, config, api_definition_path)
     
     api_properties_path = os.path.join(output_dir, "apiProperties.json")
     generate_api_properties(config, api_properties_path)

@@ -100,6 +100,8 @@ def enhance_endpoints(data: Dict[str, Any]) -> Dict[str, Any]:
     Enhance endpoints by:
     1. Adding a description that is the same as the endpoint name
     2. Capitalizing the first letter of operationId
+    3. Adding x-ms-summary to all parameters (Power Automate requirement)
+    4. Ensuring descriptions exist on parameters where required
 
     Args:
         data: The parsed Swagger/OpenAPI specification
@@ -145,6 +147,26 @@ def enhance_endpoints(data: Dict[str, Any]) -> Dict[str, Any]:
                     endpoint_data["operationId"] = (
                         operation_id[0].upper() + operation_id[1:]
                     )
+
+                # Add x-ms-summary and descriptions to parameters
+                if "parameters" in endpoint_data:
+                    for param in endpoint_data["parameters"]:
+                        # Add x-ms-summary if not present
+                        if "x-ms-summary" not in param:
+                            # Use the parameter name as the summary, but make it more readable
+                            param_name = param.get("name", "Parameter")
+                            # Convert snake_case or camelCase to Title Case
+                            readable_name = param_name.replace("_", " ").replace("-", " ")
+                            readable_name = " ".join(word.capitalize() for word in readable_name.split())
+                            param["x-ms-summary"] = readable_name
+                        
+                        # Ensure description exists if not present
+                        if "description" not in param:
+                            param["description"] = param.get("x-ms-summary", param.get("name", "Parameter"))
+                        
+                        # Add x-ms-url-encoding for path parameters
+                        if param.get("in") == "path" and "x-ms-url-encoding" not in param:
+                            param["x-ms-url-encoding"] = "single"
 
     return result
 
@@ -274,6 +296,172 @@ def remove_unused_models(data: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def remove_description_from_refs(obj: Any) -> Any:
+    """
+    Recursively remove description properties from objects that have $ref.
+    When $ref is defined, no other properties should be specified per OpenAPI spec.
+    
+    Args:
+        obj: The object to process
+        
+    Returns:
+        Processed object with descriptions removed from $ref objects
+    """
+    if isinstance(obj, dict):
+        # If this object has a $ref, remove description and other non-extension properties
+        if "$ref" in obj:
+            # Keep only $ref and x-* extension properties
+            result = {"$ref": obj["$ref"]}
+            for key, value in obj.items():
+                if key.startswith("x-"):
+                    result[key] = value
+            return result
+        else:
+            # Process all values recursively
+            return {k: remove_description_from_refs(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [remove_description_from_refs(item) for item in obj]
+    else:
+        return obj
+
+
+def keep_only_success_responses(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Keep only success responses (200, 201, 204) and remove error responses (400, 401, 404, 422, etc.)
+    This addresses the Power Automate warning about multiple response schemas.
+    
+    Args:
+        data: The parsed Swagger/OpenAPI specification
+        
+    Returns:
+        Specification with only success responses
+    """
+    result = data.copy()
+    
+    if "paths" not in result:
+        return result
+        
+    for path, methods in result["paths"].items():
+        for method, endpoint_data in methods.items():
+            # Skip non-method properties
+            if method.lower() not in ["get", "post", "put", "delete", "patch", "options", "head"]:
+                continue
+                
+            if "responses" in endpoint_data:
+                # Keep only success responses (2xx)
+                filtered_responses = {}
+                for status_code, response in endpoint_data["responses"].items():
+                    if status_code.startswith("2"):  # 200, 201, 204, etc.
+                        filtered_responses[status_code] = response
+                        
+                endpoint_data["responses"] = filtered_responses
+                
+    return result
+
+
+def make_webhook_url_required(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Make the webhook URL property required in the WebhookRequest schema.
+    This addresses the Power Automate warning about notification URL not being required.
+    
+    Args:
+        data: The parsed Swagger/OpenAPI specification
+        
+    Returns:
+        Specification with webhook URL marked as required
+    """
+    result = data.copy()
+    
+    if "definitions" not in result:
+        return result
+        
+    # Find WebhookRequest definition
+    if "WebhookRequest" in result["definitions"]:
+        webhook_def = result["definitions"]["WebhookRequest"]
+        if "properties" in webhook_def and "webhook" in webhook_def["properties"]:
+            webhook_prop = webhook_def["properties"]["webhook"]
+            if "properties" in webhook_prop and "url" in webhook_prop["properties"]:
+                # Make url required
+                if "required" not in webhook_prop:
+                    webhook_prop["required"] = []
+                if "url" not in webhook_prop["required"]:
+                    webhook_prop["required"].append("url")
+                    
+            # Remove unsupported minProperties keyword
+            if "minProperties" in webhook_prop:
+                del webhook_prop["minProperties"]
+                
+    return result
+
+
+def fix_info_section(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Fix the info section to meet Power Automate certification requirements:
+    1. Remove restricted words from title (api, connector)
+    2. Ensure title ends with alphanumeric character
+    3. Add description if missing (30-500 characters)
+    4. Add contact property if missing
+    5. Add x-ms-connector-metadata at root level (not in info)
+
+    Args:
+        data: The parsed Swagger/OpenAPI specification
+
+    Returns:
+        Specification with fixed info section
+    """
+    result = data.copy()
+
+    if "info" not in result:
+        return result
+
+    # Fix title - remove restricted words
+    if "title" in result["info"]:
+        title = result["info"]["title"]
+        # Remove restricted words (case insensitive)
+        title = re.sub(r'\bapi\b', '', title, flags=re.IGNORECASE)
+        title = re.sub(r'\bconnector\b', '', title, flags=re.IGNORECASE)
+        # Clean up extra spaces
+        title = re.sub(r'\s+', ' ', title).strip()
+        # Ensure title ends with alphanumeric character
+        title = re.sub(r'[^a-zA-Z0-9]+$', '', title)
+        result["info"]["title"] = title
+
+    # Add description if missing (must be 30-500 characters)
+    if "description" not in result["info"] or not result["info"]["description"] or len(result["info"]["description"]) < 30:
+        result["info"]["description"] = "Fulcrum is a mobile data collection platform for field teams. This connector enables integration with Fulcrum's API for managing field data, photos, videos, and more."
+
+    # Add contact if missing
+    if "contact" not in result["info"]:
+        result["info"]["contact"] = {
+            "name": "Fulcrum Support",
+            "url": "https://www.fulcrumapp.com/support",
+            "email": "support@fulcrumapp.com"
+        }
+
+    # Remove x-ms-connector-metadata from info if present (it should be at root level)
+    if "x-ms-connector-metadata" in result["info"]:
+        del result["info"]["x-ms-connector-metadata"]
+
+    # Add x-ms-connector-metadata at root level if missing
+    if "x-ms-connector-metadata" not in result:
+        result["x-ms-connector-metadata"] = [
+            {
+                "propertyName": "Website",
+                "propertyValue": "https://www.fulcrumapp.com"
+            },
+            {
+                "propertyName": "Privacy policy",
+                "propertyValue": "https://www.fulcrumapp.com/privacy"
+            },
+            {
+                "propertyName": "Categories",
+                "propertyValue": "Productivity;Data"
+            }
+        ]
+
+    return result
+
+
 def process_file(input_file: str, output_file: str = None) -> None:
     """
     Process a Swagger/OpenAPI file to:
@@ -304,14 +492,27 @@ def process_file(input_file: str, output_file: str = None) -> None:
         # First filter endpoints
         filtered_data = filter_endpoints(data)
 
-        # Then remove unused models
-        cleaned_models = remove_unused_models(filtered_data)
+        # Keep only success responses (remove error responses)
+        # Do this BEFORE removing unused models so error response models get cleaned up
+        success_only = keep_only_success_responses(filtered_data)
+
+        # Then remove unused models (including now-unused error response models)
+        cleaned_models = remove_unused_models(success_only)
+
+        # Fix info section for Power Automate certification
+        fixed_info = fix_info_section(cleaned_models)
+
+        # Make webhook URL required and remove unsupported keywords
+        fixed_webhooks = make_webhook_url_required(fixed_info)
 
         # Then enhance the endpoints
-        enhanced_data = enhance_endpoints(cleaned_models)
+        enhanced_data = enhance_endpoints(fixed_webhooks)
+
+        # Remove descriptions from $ref properties
+        no_ref_descriptions = remove_description_from_refs(enhanced_data)
 
         # Finally process the data to remove anyOf and oneOf
-        cleaned_data = remove_anyof_oneof(enhanced_data)
+        cleaned_data = remove_anyof_oneof(no_ref_descriptions)
 
         # Write the cleaned data back
         with open(output_file, "w", encoding="utf-8") as f:
