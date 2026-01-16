@@ -268,14 +268,25 @@ def augment_spec(data: Dict[str, Any]) -> tuple[bool, list[str]]:
             "properties" in webhook_req
             and "webhook" in webhook_req["properties"]
             and "properties" in webhook_req["properties"]["webhook"]
-            and "url" in webhook_req["properties"]["webhook"]["properties"]
         ):
-            url_prop = webhook_req["properties"]["webhook"]["properties"]["url"]
-            url_prop["x-ms-notification-url"] = True
-            url_prop["x-ms-visibility"] = "internal"
-            if "x-ms-summary" not in url_prop:
-                url_prop["x-ms-summary"] = "Callback URL"
-            messages.append("Augmented WebhookRequest.webhook.url with x-ms-notification-url")
+            webhook_props = webhook_req["properties"]["webhook"]["properties"]
+            
+            # Augment URL field
+            if "url" in webhook_props:
+                url_prop = webhook_props["url"]
+                url_prop["x-ms-notification-url"] = True
+                url_prop["x-ms-visibility"] = "internal"
+                if "x-ms-summary" not in url_prop:
+                    url_prop["x-ms-summary"] = "Callback URL"
+                messages.append("Augmented WebhookRequest.webhook.url with x-ms-notification-url")
+            
+            # Add default value to name field
+            if "name" in webhook_props:
+                name_prop = webhook_props["name"]
+                name_prop["default"] = "Power Platform Trigger"
+                if "x-ms-summary" not in name_prop:
+                    name_prop["x-ms-summary"] = "Webhook Name"
+                messages.append("Added default value to WebhookRequest.webhook.name")
 
     return True, messages
 
