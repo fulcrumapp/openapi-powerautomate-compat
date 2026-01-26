@@ -145,6 +145,49 @@ def generate_api_properties(config: Dict[str, Any], output_path: str) -> None:
         sys.exit(1)
 
 
+def extract_operations(swagger_spec: Dict[str, Any]) -> Dict[str, list]:
+    """
+    Extract triggers and actions from the Swagger specification.
+    
+    Args:
+        swagger_spec: The parsed Swagger specification
+        
+    Returns:
+        Dictionary with 'triggers' and 'actions' lists containing operation info
+    """
+    triggers = []
+    actions = []
+    
+    if 'paths' not in swagger_spec:
+        return {'triggers': triggers, 'actions': actions}
+    
+    for path, methods in swagger_spec['paths'].items():
+        for method, operation in methods.items():
+            if method.lower() not in ['get', 'post', 'put', 'patch', 'delete']:
+                continue
+            
+            if not isinstance(operation, dict):
+                continue
+            
+            # Check if this is a trigger
+            is_trigger = operation.get('x-ms-trigger') is not None
+            
+            operation_info = {
+                'id': operation.get('operationId', 'Unknown'),
+                'summary': operation.get('summary', 'No description available'),
+                'description': operation.get('description', '')
+            }
+            
+            if is_trigger:
+                triggers.append(operation_info)
+            else:
+                # Skip internal operations (like webhook unsubscribe)
+                if operation.get('x-ms-visibility') != 'internal':
+                    actions.append(operation_info)
+    
+    return {'triggers': triggers, 'actions': actions}
+
+
 def generate_readme(config: Dict[str, Any], swagger_spec: Dict[str, Any], output_path: str) -> None:
     """
     Generate README.md following Microsoft's certified connector template.
@@ -175,6 +218,31 @@ def generate_readme(config: Dict[str, Any], swagger_spec: Dict[str, Any], output
         readme_lines.append(f"- {prereq}")
     readme_lines.append("")
     
+    # Supported Operations
+    operations = extract_operations(swagger_spec)
+    readme_lines.append("## Supported Operations")
+    readme_lines.append("")
+    
+    # Triggers
+    if operations['triggers']:
+        readme_lines.append("### Triggers")
+        readme_lines.append("")
+        for trigger in operations['triggers']:
+            summary = trigger['summary']
+            # Use just the summary for trigger names - simple and clean
+            readme_lines.append(f"- {summary}")
+        readme_lines.append("")
+    
+    # Actions
+    if operations['actions']:
+        readme_lines.append("### Actions")
+        readme_lines.append("")
+        for action in operations['actions']:
+            summary = action['summary']
+            # Use just the summary for action names - simple and clean
+            readme_lines.append(f"- {summary}")
+        readme_lines.append("")
+    
     # Obtaining Credentials (optional - only if authentication config exists)
     if 'authentication' in config:
         readme_lines.append("## Obtaining Credentials")
@@ -198,7 +266,7 @@ def generate_readme(config: Dict[str, Any], swagger_spec: Dict[str, Any], output
             readme_lines.append("### Custom Host URLs")
             readme_lines.append("")
             readme_lines.append("By default, the connector uses the production Fulcrum API at `api.fulcrumapp.com`. "
-                              "For other regions or custom deployments, you can specify a different host URL "
+                              "For other regions, you can specify a different host URL "
                               "when creating your connection.")
             readme_lines.append("")
             readme_lines.append("**Regional Endpoints:**")

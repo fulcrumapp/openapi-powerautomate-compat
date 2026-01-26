@@ -165,6 +165,8 @@ All generated files are gitignored and can be safely deleted after import.
 
 The tool automatically generates a complete Microsoft Power Platform certification package ready for submission to the [PowerPlatformConnectors repository](https://github.com/microsoft/PowerPlatformConnectors).
 
+The icon used for the connector can be found in the assets directory.
+
 ### Customizing Connector Metadata
 
 Edit `connector-config.yaml` at the repository root to customize:
@@ -190,6 +192,11 @@ prerequisites:
 After editing, run `./scripts/convert_openapi.sh` to regenerate the certification package.
 
 **Note:** Keep prerequisites and limitations concise. Avoid mentioning specific plan types or redundant setup instructions.
+
+## Submission
+Reference the following on how to submit a connector for certification:
+- https://learn.microsoft.com/en-us/connectors/custom-connectors/submit-for-certification
+- https://learn.microsoft.com/en-us/connectors/custom-connectors/certification-submission
 
 ## For More Information
 
