@@ -174,6 +174,7 @@ Edit `connector-config.yaml` at the repository root to customize:
 - Publisher name and support contact
 - Branding (icon color)
 - Authentication configuration
+- Connector version (required - see below)
 - README documentation sections
 - Prerequisites and limitations
 
@@ -182,6 +183,7 @@ Edit `connector-config.yaml` at the repository root to customize:
 ```yaml
 publisher: Fulcrum
 iconBrandColor: "#EB1300"
+version: "1.0.0"  # Required - set connector version
 authentication:
   type: apiKey
   displayName: Fulcrum API Token
@@ -192,6 +194,23 @@ prerequisites:
 After editing, run `./scripts/convert_openapi.sh` to regenerate the certification package.
 
 **Note:** Keep prerequisites and limitations concise. Avoid mentioning specific plan types or redundant setup instructions.
+
+### Configuring Connector Version
+
+The `version` field in `connector-config.yaml` is **required** and controls the version number displayed in Power Automate. This allows you to manage the connector version independently from the underlying API specification version.
+
+**Use cases:**
+- **Connector iteration**: Improving the connector (better descriptions, metadata fixes) with independent version tracking
+- **Semantic versioning**: Using semantic versioning (e.g., "1.0.0") for the connector
+
+**Example:**
+
+```yaml
+# Required: Set the connector version
+version: "1.0.0"
+```
+
+The version appears in the `info.version` field of the packaged `apiDefinition.swagger.json` file.
 
 ## Submission
 Reference the following on how to submit a connector for certification:

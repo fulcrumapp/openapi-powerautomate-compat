@@ -4,6 +4,9 @@
 # Required fields
 publisher: Fulcrum
 displayName: Fulcrum
+# Version is required and will override the version from the source API specification
+# This allows the connector version to be managed independently from the underlying API version
+version: "1.0.0"
 description: |
   Fulcrum is a mobile data collection platform for field teams.
   This connector enables integration with Fulcrum's API for managing

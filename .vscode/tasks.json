@@ -1,0 +1,10 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Download Fulcrum API",
+			"type": "shell",
+			"command": "./scripts/download_fulcrum_api.sh"
+		}
+	]
+}

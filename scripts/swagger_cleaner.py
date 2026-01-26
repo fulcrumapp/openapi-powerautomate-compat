@@ -138,8 +138,9 @@ def enhance_endpoints(data: Dict[str, Any]) -> Dict[str, Any]:
                 method_name = method.upper()
                 description = f"{capitalized_name} {method_name}"
 
-                # Add description
-                endpoint_data["description"] = description
+                # Add description only if missing
+                if "description" not in endpoint_data or not endpoint_data["description"]:
+                    endpoint_data["description"] = description
 
                 # Capitalize first letter of operationId if present
                 if "operationId" in endpoint_data and endpoint_data["operationId"]:

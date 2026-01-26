@@ -40,7 +40,8 @@ def validate_config(config: Dict[str, Any]) -> None:
         'iconBrandColor',
         'supportEmail',
         'prerequisites',
-        'knownLimitations'
+        'knownLimitations',
+        'version'
     ]
     
     missing_fields = [field for field in required_fields if field not in config or not config[field]]
@@ -82,6 +83,10 @@ def generate_api_definition(swagger_spec: Dict[str, Any], config: Dict[str, Any]
     # Update the title to match the displayName from config
     if 'info' in swagger_spec and 'displayName' in config:
         swagger_spec['info']['title'] = config['displayName']
+    
+    # Override version with config value
+    if 'info' in swagger_spec and 'version' in config:
+        swagger_spec['info']['version'] = config['version']
     
     try:
         with open(output_path, 'w', encoding='utf-8') as f:
