@@ -62,3 +62,61 @@ gettingStarted: |
 
 # Documentation
 documentationUrl: https://developer.fulcrumapp.com
+
+# Swagger Cleaner Configuration
+# These settings control the swagger_cleaner.py transformation pipeline
+swaggerCleaner:
+  # Endpoints to keep in the cleaned specification
+  # Format: "/path/method" (e.g., "/pets/get", "/users/{userId}/put")
+  endpointsToKeep:
+    - "/v2/attachments/{attachment_id}/get"
+    - "/v2/attachments/get"
+    - "/v2/audio.json/get"
+    - "/v2/audio/{audio_id}.mp4/get"
+    - "/v2/photos.json/get"
+    - "/v2/photos/{photo_id}.jpg/get"
+    - "/v2/photos/{photo_id}.json/get"
+    - "/v2/query/post"
+    - "/v2/records.json/get"
+    - "/v2/records.json/post"
+    - "/v2/records/{record_id}.json/delete"
+    - "/v2/records/{record_id}.json/get"
+    - "/v2/records/{record_id}.json/patch"
+    - "/v2/records/{record_id}.json/put"
+    - "/v2/records/{record_id}/history.json/get"
+    - "/v2/reports.json/post"
+    - "/v2/reports/{report_id}.pdf/get"
+    - "/v2/signatures.json/get"
+    - "/v2/signatures/{signature_id}.json/get"
+    - "/v2/signatures/{signature_id}.png/get"
+    - "/v2/videos.json/get"
+    - "/v2/videos/{video_id}.mp4/get"
+    - "/v2/webhooks.json/post"
+    - "/v2/webhooks/{webhook_id}.json/delete"
+  
+  # Parameters to remove (authentication handled by Power Automate)
+  parametersToRemove:
+    - name: x-apitoken
+      in: header
+    - name: accept
+      in: header
+  
+  # Info section configuration
+  info:
+    titleRestrictedWords:
+      - api
+      - connector
+    description: "Fulcrum is a mobile data collection platform for field teams. This connector enables integration with Fulcrum's API for managing field data, photos, videos, and more."
+    contact:
+      name: Fulcrum Support
+      url: https://www.fulcrumapp.com/support
+      email: support@fulcrumapp.com
+  
+  # Root-level x-ms-connector-metadata
+  connectorMetadata:
+    - propertyName: Website
+      propertyValue: https://www.fulcrumapp.com
+    - propertyName: Privacy policy
+      propertyValue: https://www.fulcrumapp.com/privacy
+    - propertyName: Categories
+      propertyValue: Productivity;Data

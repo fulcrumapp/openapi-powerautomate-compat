@@ -212,8 +212,38 @@ if [ "$TRIGGER_CHECKS_PASSED" = true ]; then
 fi
 echo ""
 
-# Step 11: Validate certification package
-echo "Step 11: Validating certification package..."
+# Step 11: Verify x-apitoken parameters removed from endpoints
+echo "Step 11: Verifying x-apitoken parameters removed from endpoints..."
+AUTH_CHECKS_PASSED=true
+
+# Count x-apitoken parameters in endpoint parameters sections (excluding securityDefinitions)
+# Extract only the paths section and search for x-apitoken parameters there
+APITOKEN_COUNT=$(awk '/^paths:/,/^securityDefinitions:/ {print}' "${SWAGGER_CLEAN_PATH}" | grep -i "name: x-apitoken" | wc -l | tr -d ' ')
+
+if [ "$APITOKEN_COUNT" -gt 0 ]; then
+    echo -e "  ${RED}✗${NC} Found ${APITOKEN_COUNT} x-apitoken parameter(s) in endpoint parameters - these should be removed"
+    echo "      Authentication is handled by Power Automate connection configuration"
+    AUTH_CHECKS_PASSED=false
+    VALIDATION_PASSED=false
+else
+    echo -e "  ${GREEN}✓${NC} No x-apitoken parameters found in endpoint parameters"
+fi
+
+# Also check for X-ApiToken in endpoint parameters (uppercase variation, excluding securityDefinitions)
+APITOKEN_HEADER_COUNT=$(awk '/^paths:/,/^securityDefinitions:/ {print}' "${SWAGGER_CLEAN_PATH}" | grep -i "X-ApiToken" | wc -l | tr -d ' ')
+
+if [ "$APITOKEN_HEADER_COUNT" -gt 0 ]; then
+    echo -e "  ${YELLOW}⚠${NC} Found ${APITOKEN_HEADER_COUNT} reference(s) to X-ApiToken in endpoint parameters"
+    echo "      Manual review recommended to ensure proper removal"
+fi
+
+if [ "$AUTH_CHECKS_PASSED" = true ]; then
+    echo -e "${GREEN}✓ Authentication parameters properly removed${NC}"
+fi
+echo ""
+
+# Step 12: Validate certification package
+echo "Step 12: Validating certification package..."
 CERT_DIR="${WORK_DIR}/certified-connectors/Fulcrum"
 CERT_API_DEF="${CERT_DIR}/apiDefinition.swagger.json"
 CERT_API_PROPS="${CERT_DIR}/apiProperties.json"
@@ -392,8 +422,8 @@ if [ "$CERT_CHECKS_PASSED" = true ]; then
 fi
 echo ""
 
-# Step 12: Run paconn validate
-echo "Step 12: Running Power Automate connector validation (paconn)..."
+# Step 13: Run paconn validate
+echo "Step 13: Running Power Automate connector validation (paconn)..."
 echo "  (This validates the connector meets Power Automate certification requirements)"
 echo ""
 
@@ -450,7 +480,7 @@ if [ -n "$PACONN_CMD" ]; then
             echo ""
             echo "paconn requires authentication to Power Platform for validation."
             echo ""
-            echo "To complete Step 12:"
+            echo "To complete Step 13:"
             echo ""
             echo "  1. Login to Power Platform:"
             echo ""
