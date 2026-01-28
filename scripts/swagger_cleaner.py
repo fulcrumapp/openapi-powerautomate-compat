@@ -5,35 +5,72 @@ import os
 import re
 from typing import Dict, Any, Union, List, Optional
 
-# Define the endpoints to keep in the cleaned version
-# Format: ['/path/method', '/another/path/method']
-# Example: ['/pets/get', '/pets/{petId}/get', '/users/post']
-ENDPOINTS_TO_KEEP = [
-    "/v2/attachments/{attachment_id}/get",
-    "/v2/attachments/get",
-    "/v2/audio.json/get",
-    "/v2/audio/{audio_id}.mp4/get",
-    "/v2/photos.json/get",
-    "/v2/photos/{photo_id}.jpg/get"
-    "/v2/photos/{photo_id}.json/get",
-    "/v2/query/post",
-    "/v2/records.json/get",
-    "/v2/records.json/post",
-    "/v2/records/{record_id}.json/delete",
-    "/v2/records/{record_id}.json/get",
-    "/v2/records/{record_id}.json/patch",
-    "/v2/records/{record_id}.json/put",
-    "/v2/records/{record_id}/history.json/get",
-    "/v2/reports.json/post",
-    "/v2/reports/{report_id}.pdf/get",
-    "/v2/signatures.json/get",
-    "/v2/signatures/{signature_id}.json/get",
-    "/v2/signatures/{signature_id}.png/get",
-    "/v2/videos.json/get",
-    "/v2/videos/{video_id}.mp4/get",
-    "/v2/webhooks.json/post",
-    "/v2/webhooks/{webhook_id}.json/delete"
-]
+# Global configuration loaded from connector-config.yaml
+CONFIG = None
+
+def load_config(config_path: str = None) -> Dict[str, Any]:
+    """
+    Load configuration from connector-config.yaml.
+    
+    Args:
+        config_path: Path to the config file. If None, looks for connector-config.yaml in repo root.
+        
+    Returns:
+        Configuration dictionary
+        
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+        yaml.YAMLError: If config file is invalid YAML
+    """
+    if config_path is None:
+        # Default to connector-config.yaml in repo root (one level up from scripts/)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(os.path.dirname(script_dir), "connector-config.yaml")
+    
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Configuration file not found: {config_path}")
+    
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+    
+    # Validate required swagger cleaner configuration
+    if "swaggerCleaner" not in config:
+        raise ValueError("Configuration file missing 'swaggerCleaner' section")
+    
+    return config
+
+
+def get_endpoints_to_keep() -> List[str]:
+    """Get the list of endpoints to keep from configuration."""
+    global CONFIG
+    if CONFIG is None:
+        CONFIG = load_config()
+    return CONFIG.get("swaggerCleaner", {}).get("endpointsToKeep", [])
+
+
+def get_parameters_to_remove() -> List[Dict[str, str]]:
+    """Get the list of parameters to remove from configuration."""
+    global CONFIG
+    if CONFIG is None:
+        CONFIG = load_config()
+    return CONFIG.get("swaggerCleaner", {}).get("parametersToRemove", [])
+
+
+def get_info_config() -> Dict[str, Any]:
+    """Get the info section configuration."""
+    global CONFIG
+    if CONFIG is None:
+        CONFIG = load_config()
+    return CONFIG.get("swaggerCleaner", {}).get("info", {})
+
+
+def get_connector_metadata() -> List[Dict[str, str]]:
+    """Get the x-ms-connector-metadata configuration."""
+    global CONFIG
+    if CONFIG is None:
+        CONFIG = load_config()
+    return CONFIG.get("swaggerCleaner", {}).get("connectorMetadata", [])
+
 
 
 def remove_anyof_oneof(obj: Any) -> Any:
@@ -168,6 +205,11 @@ def enhance_endpoints(data: Dict[str, Any]) -> Dict[str, Any]:
                         # Add x-ms-url-encoding for path parameters
                         if param.get("in") == "path" and "x-ms-url-encoding" not in param:
                             param["x-ms-url-encoding"] = "single"
+                        
+                        # Set x-ms-visibility to advanced for x-skipworkflows and x-skipwebhooks parameters
+                        param_name = param.get("name", "")
+                        if param_name.lower() in ["x-skipworkflows", "x-skipwebhooks"]:
+                            param["x-ms-visibility"] = "advanced"
 
     return result
 
@@ -182,8 +224,10 @@ def filter_endpoints(data: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Filtered Swagger/OpenAPI specification
     """
+    endpoints_to_keep = get_endpoints_to_keep()
+    
     # If no endpoints specified, return the full data
-    if not ENDPOINTS_TO_KEEP:
+    if not endpoints_to_keep:
         return data
 
     result = data.copy()
@@ -212,8 +256,8 @@ def filter_endpoints(data: Dict[str, Any]) -> Dict[str, Any]:
                 ]:
                     # Check if the endpoint should be kept
                     if (
-                        endpoint_key in ENDPOINTS_TO_KEEP
-                        or endpoint_key_lower in ENDPOINTS_TO_KEEP
+                        endpoint_key in endpoints_to_keep
+                        or endpoint_key_lower in endpoints_to_keep
                     ):
                         filtered_methods[method] = endpoint_data
                 else:
@@ -395,6 +439,70 @@ def make_webhook_url_required(data: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def remove_configured_parameters(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Remove parameters from all endpoints based on configuration.
+    Parameters like x-apitoken and accept headers are removed since they're
+    handled by Power Automate's connection configuration.
+    
+    Args:
+        data: The parsed Swagger/OpenAPI specification
+        
+    Returns:
+        Specification with configured parameters removed
+    """
+    result = data.copy()
+    
+    if "paths" not in result:
+        return result
+    
+    params_to_remove = get_parameters_to_remove()
+    if not params_to_remove:
+        return result
+    
+    removed_count = 0
+    
+    for path, methods in result["paths"].items():
+        for method, endpoint_data in methods.items():
+            # Skip non-method properties
+            if method.lower() not in ["get", "post", "put", "delete", "patch", "options", "head"]:
+                continue
+                
+            if "parameters" in endpoint_data:
+                original_count = len(endpoint_data["parameters"])
+                
+                # Filter out configured parameters
+                filtered_params = []
+                for param in endpoint_data["parameters"]:
+                    should_remove = False
+                    param_name = param.get("name", "").lower()
+                    param_in = param.get("in", "")
+                    
+                    for removal_config in params_to_remove:
+                        config_name = removal_config.get("name", "").lower()
+                        config_in = removal_config.get("in", "")
+                        
+                        # Check if parameter matches removal criteria
+                        if param_name == config_name and (not config_in or param_in == config_in):
+                            should_remove = True
+                            break
+                    
+                    if not should_remove:
+                        filtered_params.append(param)
+                
+                endpoint_data["parameters"] = filtered_params
+                removed_count += (original_count - len(filtered_params))
+                
+                # Remove parameters key if empty
+                if not endpoint_data["parameters"]:
+                    del endpoint_data["parameters"]
+    
+    if removed_count > 0:
+        print(f"Removed {removed_count} configured parameter(s) from endpoints")
+    
+    return result
+
+
 def fix_info_section(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fix the info section to meet Power Automate certification requirements:
@@ -415,12 +523,17 @@ def fix_info_section(data: Dict[str, Any]) -> Dict[str, Any]:
     if "info" not in result:
         return result
 
+    info_config = get_info_config()
+    restricted_words = info_config.get("titleRestrictedWords", ["api", "connector"])
+    default_description = info_config.get("description", "")
+    contact_config = info_config.get("contact", {})
+
     # Fix title - remove restricted words
     if "title" in result["info"]:
         title = result["info"]["title"]
         # Remove restricted words (case insensitive)
-        title = re.sub(r'\bapi\b', '', title, flags=re.IGNORECASE)
-        title = re.sub(r'\bconnector\b', '', title, flags=re.IGNORECASE)
+        for word in restricted_words:
+            title = re.sub(rf'\b{word}\b', '', title, flags=re.IGNORECASE)
         # Clean up extra spaces
         title = re.sub(r'\s+', ' ', title).strip()
         # Ensure title ends with alphanumeric character
@@ -429,15 +542,12 @@ def fix_info_section(data: Dict[str, Any]) -> Dict[str, Any]:
 
     # Add description if missing (must be 30-500 characters)
     if "description" not in result["info"] or not result["info"]["description"] or len(result["info"]["description"]) < 30:
-        result["info"]["description"] = "Fulcrum is a mobile data collection platform for field teams. This connector enables integration with Fulcrum's API for managing field data, photos, videos, and more."
+        if default_description:
+            result["info"]["description"] = default_description
 
     # Add contact if missing
-    if "contact" not in result["info"]:
-        result["info"]["contact"] = {
-            "name": "Fulcrum Support",
-            "url": "https://www.fulcrumapp.com/support",
-            "email": "support@fulcrumapp.com"
-        }
+    if "contact" not in result["info"] and contact_config:
+        result["info"]["contact"] = contact_config
 
     # Remove x-ms-connector-metadata from info if present (it should be at root level)
     if "x-ms-connector-metadata" in result["info"]:
@@ -445,20 +555,9 @@ def fix_info_section(data: Dict[str, Any]) -> Dict[str, Any]:
 
     # Add x-ms-connector-metadata at root level if missing
     if "x-ms-connector-metadata" not in result:
-        result["x-ms-connector-metadata"] = [
-            {
-                "propertyName": "Website",
-                "propertyValue": "https://www.fulcrumapp.com"
-            },
-            {
-                "propertyName": "Privacy policy",
-                "propertyValue": "https://www.fulcrumapp.com/privacy"
-            },
-            {
-                "propertyName": "Categories",
-                "propertyValue": "Productivity;Data"
-            }
-        ]
+        connector_metadata = get_connector_metadata()
+        if connector_metadata:
+            result["x-ms-connector-metadata"] = connector_metadata
 
     return result
 
@@ -506,8 +605,11 @@ def process_file(input_file: str, output_file: str = None) -> None:
         # Make webhook URL required and remove unsupported keywords
         fixed_webhooks = make_webhook_url_required(fixed_info)
 
+        # Remove configured parameters (authentication and accept headers handled by Power Automate)
+        no_unwanted_params = remove_configured_parameters(fixed_webhooks)
+
         # Then enhance the endpoints
-        enhanced_data = enhance_endpoints(fixed_webhooks)
+        enhanced_data = enhance_endpoints(no_unwanted_params)
 
         # Remove descriptions from $ref properties
         no_ref_descriptions = remove_description_from_refs(enhanced_data)
@@ -523,7 +625,8 @@ def process_file(input_file: str, output_file: str = None) -> None:
                 json.dump(cleaned_data, f, indent=2)
 
         # Print summary of operation
-        if ENDPOINTS_TO_KEEP:
+        endpoints_to_keep = get_endpoints_to_keep()
+        if endpoints_to_keep:
             endpoint_count = sum(
                 1
                 for path in cleaned_data.get("paths", {}).values()
@@ -533,12 +636,12 @@ def process_file(input_file: str, output_file: str = None) -> None:
             )
             print(f"Successfully processed {input_file} -> {output_file}")
             print(
-                f"Filtered to {endpoint_count} endpoints out of {len(ENDPOINTS_TO_KEEP)} specified"
+                f"Filtered to {endpoint_count} endpoints out of {len(endpoints_to_keep)} specified"
             )
             print("Added descriptions and capitalized operationIds")
 
             # Check if fewer endpoints than specified
-            if endpoint_count < len(ENDPOINTS_TO_KEEP):
+            if endpoint_count < len(endpoints_to_keep):
                 print(
                     "Warning: Some specified endpoints were not found in the input file."
                 )
@@ -609,7 +712,7 @@ if __name__ == "__main__":
             '\nEndpoint format: "/path/method" (e.g., "/pets/get", "/users/{userId}/put")'
         )
         print(
-            "Define endpoints to keep by editing the ENDPOINTS_TO_KEEP array at the top of the script"
+            "Configure endpoints to keep and other settings in connector-config.yaml"
         )
         sys.exit(1)
 

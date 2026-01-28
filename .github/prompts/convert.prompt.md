@@ -8,6 +8,10 @@ This document provides instructions for downloading and converting the Fulcrum A
 To convert using the default configuration:
 
 ```bash
+# Clean the build directory first
+rm -rf build/
+
+# Run the conversion pipeline
 ./scripts/download_fulcrum_api.sh
 ./scripts/convert_openapi.sh
 ./scripts/validate.sh
@@ -64,6 +68,16 @@ SCHEMAS_BASE_PATH="path/to/schemas"       # Path to external schemas (optional)
 - Node.js and npm (for conversion tools)
 - Python 3 with PyYAML (for cleanup script)
 - (Optional) jq for JSON validation
+
+## Step 0: Clean the Build Directory (Recommended)
+
+Before starting the conversion, clean any existing build artifacts:
+
+```bash
+rm -rf build/
+```
+
+This ensures you're working with a fresh state and prevents issues from stale files.
 
 ## Step 1: Download the Fulcrum API Specification
 
@@ -199,6 +213,9 @@ export WORK_DIR=/path/to/custom/directory
 ### Testing Multiple Branches
 
 ```bash
+# Clean first
+rm -rf build/
+
 # Test main branch
 BRANCH="main" ./scripts/download_fulcrum_api.sh
 ./scripts/convert_openapi.sh

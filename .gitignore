@@ -8,5 +8,5 @@ api-3.0.json
 swagger-2.0.yaml
 fulcrum-power-automate-connector.yaml
 openapitools.json
-.DS_Store
+**/.DS_Store
 settings.json
