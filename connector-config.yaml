@@ -11,7 +11,7 @@ description: |
   Fulcrum is a mobile data collection platform for field teams.
   This connector enables integration with Fulcrum's API for managing
   field data, photos, videos, and more.
-iconBrandColor: "#EB1300"
+iconBrandColor: "#F4F4F4"
 category: Field Productivity
 supportEmail: support@fulcrumapp.com
 supportUrl: https://www.fulcrumapp.com/support
@@ -106,7 +106,7 @@ swaggerCleaner:
     titleRestrictedWords:
       - api
       - connector
-    description: "Fulcrum is a mobile data collection platform for field teams. This connector enables integration with Fulcrum's API for managing field data, photos, videos, and more."
+    description: "Fulcrum is a field-first solution that empowers both GIS experts and non-GIS team members to easily capture and share geospatial data."
     contact:
       name: Fulcrum Support
       url: https://www.fulcrumapp.com/support
