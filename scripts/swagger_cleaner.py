@@ -439,6 +439,49 @@ def make_webhook_url_required(data: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def remove_empty_success_response_schemas(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Remove schema definitions from responses that reference EmptySuccessResponse.
+    Empty success responses should not define a schema at all.
+    
+    Args:
+        data: The parsed Swagger/OpenAPI specification
+        
+    Returns:
+        Specification with EmptySuccessResponse schemas removed
+    """
+    result = data.copy()
+    
+    if "paths" not in result:
+        return result
+    
+    removed_count = 0
+    
+    for path, methods in result["paths"].items():
+        for method, endpoint_data in methods.items():
+            # Skip non-method properties
+            if method.lower() not in ["get", "post", "put", "delete", "patch", "options", "head"]:
+                continue
+                
+            if "responses" in endpoint_data:
+                for status_code, response in endpoint_data["responses"].items():
+                    # Check if response has a schema that references EmptySuccessResponse
+                    if "schema" in response:
+                        schema = response["schema"]
+                        # Check for direct $ref or nested $ref
+                        if isinstance(schema, dict):
+                            ref = schema.get("$ref", "")
+                            if "EmptySuccessResponse" in ref:
+                                # Remove the schema entirely
+                                del response["schema"]
+                                removed_count += 1
+                                
+    if removed_count > 0:
+        print(f"Removed {removed_count} EmptySuccessResponse schema reference(s)")
+    
+    return result
+
+
 def remove_configured_parameters(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Remove parameters from all endpoints based on configuration.
@@ -525,8 +568,8 @@ def fix_info_section(data: Dict[str, Any]) -> Dict[str, Any]:
 
     info_config = get_info_config()
     restricted_words = info_config.get("titleRestrictedWords", ["api", "connector"])
-    default_description = info_config.get("description", "")
     contact_config = info_config.get("contact", {})
+    default_description = info_config.get("description", "")
 
     # Fix title - remove restricted words
     if "title" in result["info"]:
@@ -596,20 +639,24 @@ def process_file(input_file: str, output_file: str = None) -> None:
         # Do this BEFORE removing unused models so error response models get cleaned up
         success_only = keep_only_success_responses(filtered_data)
 
-        # Then remove unused models (including now-unused error response models)
-        cleaned_models = remove_unused_models(success_only)
-
         # Fix info section for Power Automate certification
-        fixed_info = fix_info_section(cleaned_models)
+        fixed_info = fix_info_section(success_only)
 
         # Make webhook URL required and remove unsupported keywords
         fixed_webhooks = make_webhook_url_required(fixed_info)
 
+        # Remove EmptySuccessResponse schemas
+        no_empty_schemas = remove_empty_success_response_schemas(fixed_webhooks)
+
         # Remove configured parameters (authentication and accept headers handled by Power Automate)
-        no_unwanted_params = remove_configured_parameters(fixed_webhooks)
+        no_unwanted_params = remove_configured_parameters(no_empty_schemas)
+        
+        # Remove unused models AFTER removing EmptySuccessResponse refs and error responses
+        # This ensures EmptySuccessResponse and other now-unused models are properly removed
+        cleaned_models = remove_unused_models(no_unwanted_params)
 
         # Then enhance the endpoints
-        enhanced_data = enhance_endpoints(no_unwanted_params)
+        enhanced_data = enhance_endpoints(cleaned_models)
 
         # Remove descriptions from $ref properties
         no_ref_descriptions = remove_description_from_refs(enhanced_data)

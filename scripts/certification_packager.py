@@ -36,7 +36,6 @@ def validate_config(config: Dict[str, Any]) -> None:
     required_fields = [
         'publisher',
         'displayName',
-        'description',
         'iconBrandColor',
         'supportEmail',
         'prerequisites',
@@ -197,6 +196,17 @@ def generate_readme(config: Dict[str, Any], swagger_spec: Dict[str, Any], output
     """
     Generate README.md following Microsoft's certified connector template.
     
+    Required sections per Microsoft template (templates/certified-connectors/readme.md):
+    1. Title (Required) - One paragraph, two to three sentences about the service and connector
+    2. Publisher: Publisher's Name (Required) - Company or organization name
+    3. Prerequisites (Required) - Any plans or licenses, tools required
+    4. Supported Operations (Required) - Describe actions, triggers, and other endpoints
+    5. Obtaining Credentials (Required) - Explain authentication method and how to get credentials
+    6. Getting Started (Optional) - How to get started with the connector
+    7. Known Issues and Limitations (Required) - Known issues and limitations
+    8. Frequently Asked Questions (Optional) - FAQs with questions and answers
+    9. Deployment Instructions (Required) - How to deploy as custom connector
+    
     Args:
         config: The connector configuration
         swagger_spec: The parsed Swagger specification
@@ -204,26 +214,34 @@ def generate_readme(config: Dict[str, Any], swagger_spec: Dict[str, Any], output
     """
     readme_lines = []
     
-    # Title and description
-    readme_lines.append("# Fulcrum")
+    # Title (Required) - One paragraph, two to three sentences about the service and connector
+    display_name = config.get('displayName', 'Fulcrum')
+    readme_lines.append(f"# {display_name}")
     readme_lines.append("")
-    readme_lines.append(config['description'].strip())
-    readme_lines.append("")
+    # Get description from swaggerCleaner.info.description in connector-config.yaml
+    description = config.get('swaggerCleaner', {}).get('info', {}).get('description', '').strip()
+    if description:
+        readme_lines.append(description)
+        readme_lines.append("")
+    else:
+        # Provide a default description if none is configured
+        readme_lines.append(f"The {display_name} connector enables integration with the {display_name} platform for Power Automate and Power Apps.")
+        readme_lines.append("")
     
-    # Publisher
+    # Publisher (Required) - Company or organization name
     readme_lines.append("## Publisher")
     readme_lines.append("")
     readme_lines.append(config['publisher'])
     readme_lines.append("")
     
-    # Prerequisites
+    # Prerequisites (Required) - Any plans or licenses, tools required
     readme_lines.append("## Prerequisites")
     readme_lines.append("")
     for prereq in config['prerequisites']:
         readme_lines.append(f"- {prereq}")
     readme_lines.append("")
     
-    # Supported Operations
+    # Supported Operations (Required) - Describe actions, triggers, and other endpoints
     operations = extract_operations(swagger_spec)
     readme_lines.append("## Supported Operations")
     readme_lines.append("")
@@ -234,9 +252,11 @@ def generate_readme(config: Dict[str, Any], swagger_spec: Dict[str, Any], output
         readme_lines.append("")
         for trigger in operations['triggers']:
             summary = trigger['summary']
-            # Use just the summary for trigger names - simple and clean
-            readme_lines.append(f"- {summary}")
-        readme_lines.append("")
+            description = trigger.get('description', '')
+            readme_lines.append(f"#### {summary}")
+            if description:
+                readme_lines.append(description)
+            readme_lines.append("")
     
     # Actions
     if operations['actions']:
@@ -244,22 +264,39 @@ def generate_readme(config: Dict[str, Any], swagger_spec: Dict[str, Any], output
         readme_lines.append("")
         for action in operations['actions']:
             summary = action['summary']
-            # Use just the summary for action names - simple and clean
-            readme_lines.append(f"- {summary}")
-        readme_lines.append("")
+            description = action.get('description', '')
+            readme_lines.append(f"#### {summary}")
+            if description:
+                readme_lines.append(description)
+            readme_lines.append("")
     
-    # Obtaining Credentials (optional - only if authentication config exists)
+    # Obtaining Credentials (Required) - Explain authentication method and how to get credentials
+    readme_lines.append("## Obtaining Credentials")
+    readme_lines.append("")
     if 'authentication' in config:
-        readme_lines.append("## Obtaining Credentials")
-        readme_lines.append("")
         auth = config['authentication']
-        readme_lines.append(auth['description'])
+        readme_lines.append(auth.get('description', ''))
         readme_lines.append("")
         if 'tooltip' in auth:
             readme_lines.append(auth['tooltip'])
             readme_lines.append("")
+    elif 'obtainingCredentials' in config:
+        readme_lines.append(config['obtainingCredentials'].strip())
+        readme_lines.append("")
+    else:
+        # Provide default instructions based on connection parameters
+        if 'connectionParameters' in config and 'api_key' in config['connectionParameters']:
+            api_key_config = config['connectionParameters']['api_key']
+            tooltip = api_key_config.get('uiDefinition', {}).get('tooltip', '')
+            if tooltip:
+                readme_lines.append(tooltip)
+            else:
+                readme_lines.append("You will need an API token to authenticate with this connector.")
+        else:
+            readme_lines.append("Contact the service provider to obtain the necessary credentials.")
+        readme_lines.append("")
     
-    # Getting Started (optional)
+    # Getting Started (Optional) - How to get started with the connector
     if 'gettingStarted' in config and config['gettingStarted']:
         readme_lines.append("## Getting Started")
         readme_lines.append("")
@@ -289,11 +326,37 @@ def generate_readme(config: Dict[str, Any], swagger_spec: Dict[str, Any], output
             readme_lines.append("- Confirm your API token is valid for the specified host")
             readme_lines.append("")
     
-    # Known Issues and Limitations
+    # Known Issues and Limitations (Required) - Known issues and limitations
     readme_lines.append("## Known Issues and Limitations")
     readme_lines.append("")
-    for limitation in config['knownLimitations']:
-        readme_lines.append(f"- {limitation}")
+    if config.get('knownLimitations'):
+        for limitation in config['knownLimitations']:
+            readme_lines.append(f"- {limitation}")
+    else:
+        readme_lines.append("No known issues or limitations at this time.")
+    readme_lines.append("")
+    
+    # Frequently Asked Questions (Optional) - FAQs with questions and answers
+    if 'faqs' in config and config['faqs']:
+        readme_lines.append("## Frequently Asked Questions")
+        readme_lines.append("")
+        for faq in config['faqs']:
+            question = faq.get('question', '')
+            answer = faq.get('answer', '')
+            if question:
+                readme_lines.append(f"### {question}")
+                if answer:
+                    readme_lines.append(answer)
+                readme_lines.append("")
+    
+    # Deployment Instructions (Required) - How to deploy as custom connector
+    readme_lines.append("## Deployment Instructions")
+    readme_lines.append("")
+    if 'deploymentInstructions' in config and config['deploymentInstructions']:
+        readme_lines.append(config['deploymentInstructions'].strip())
+    else:
+        # Provide default deployment instructions per Microsoft's recommended format
+        readme_lines.append("Please use [these instructions](https://learn.microsoft.com/en-us/connectors/custom-connectors/paconn-cli) to deploy this connector as a custom connector in Microsoft Power Automate and Power Apps.")
     readme_lines.append("")
     
     # Write the file
