@@ -1,4 +1,4 @@
-# Fulcrum Power Automate Connector Configuration
+# Fulcrum Connector Configuration
 # This file contains metadata used to generate Microsoft certification package files
 
 # Required fields
@@ -7,10 +7,6 @@ displayName: Fulcrum
 # Version is required and will override the version from the source API specification
 # This allows the connector version to be managed independently from the underlying API version
 version: "1.0.0"
-description: |
-  Fulcrum is a mobile data collection platform for field teams.
-  This connector enables integration with Fulcrum's API for managing
-  field data, photos, videos, and more.
 iconBrandColor: "#F4F4F4"
 category: Field Productivity
 supportEmail: support@fulcrumapp.com
@@ -56,9 +52,17 @@ prerequisites:
 knownLimitations:
   - Rate limiting applies based on your Fulcrum plan
 
+# Obtaining Credentials (Required for Microsoft certification)
+obtainingCredentials: |
+  To use the Fulcrum connector, you need a Fulcrum API token:
+  1. Log in to your Fulcrum account at https://web.fulcrumapp.com
+  2. Navigate to Settings > API
+  3. Generate a new API token or use an existing one
+  4. Copy the token and use it when creating a connection
+
 # Optional README sections
 gettingStarted: |
-  Create a new connection in Power Automate and enter your API token when prompted.
+  Create a new connection and enter your Fulcrum API token when prompted.
 
 # Documentation
 documentationUrl: https://developer.fulcrumapp.com
@@ -89,12 +93,15 @@ swaggerCleaner:
     - "/v2/signatures.json/get"
     - "/v2/signatures/{signature_id}.json/get"
     - "/v2/signatures/{signature_id}.png/get"
+    - "/v2/sketches.json/get"
+    - "/v2/sketches/{sketch_id}.json/get"
+    - "/v2/sketches/{sketch_id}.jpg/get"
     - "/v2/videos.json/get"
     - "/v2/videos/{video_id}.mp4/get"
     - "/v2/webhooks.json/post"
     - "/v2/webhooks/{webhook_id}.json/delete"
   
-  # Parameters to remove (authentication handled by Power Automate)
+  # Parameters to remove (authentication handled by the connector)
   parametersToRemove:
     - name: x-apitoken
       in: header
@@ -106,7 +113,9 @@ swaggerCleaner:
     titleRestrictedWords:
       - api
       - connector
-    description: "Fulcrum is a field-first solution that empowers both GIS experts and non-GIS team members to easily capture and share geospatial data."
+    description: |
+      Fulcrum is a field-first solution that empowers both GIS experts and non-GIS team members to easily capture and share geospatial data.
+      This connector enables integration with Fulcrum for managing field data, photos, videos, and more.
     contact:
       name: Fulcrum Support
       url: https://www.fulcrumapp.com/support
