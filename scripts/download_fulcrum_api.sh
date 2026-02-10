@@ -10,10 +10,9 @@ WORK_DIR="${WORK_DIR:-${WORK_DIR_DEFAULT}}"
 
 mkdir -p "${WORK_DIR}"
 
-# Configuration
-REPO_OWNER="fulcrumapp"
-REPO_NAME="api"
-# Default to v2 (the repository's HEAD/default branch), can be overridden with BRANCH environment variable
+# Configuration - all values can be overridden with environment variables
+REPO_OWNER="${REPO_OWNER:-fulcrumapp}"
+REPO_NAME="${REPO_NAME:-api}"
 BRANCH="${BRANCH:-v2}"
 API_SPEC_PATH="reference/rest-api.json"
 SCHEMAS_BASE_PATH="reference/components/schemas"

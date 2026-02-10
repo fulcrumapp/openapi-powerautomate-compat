@@ -1,23 +1,42 @@
 # OpenAPI Power Automate Compatibility Tool
 
-This tool facilitates the conversion of OpenAPI 3.0/3.1 specifications to the Swagger 2.0 (OpenAPI 2.0) format, with a focus on ensuring compatibility with Microsoft Power Automate. It applies the necessary transformations to meet Microsoft's validation requirements.
+Converts OpenAPI 3.1 specifications to Swagger 2.0 format compatible with Microsoft Power Automate custom connectors.
+
+> **Note:** This tool is pre-configured to convert the [Fulcrum API](https://github.com/fulcrumapp/api) by default, but can be used for **any OpenAPI 3.1 specification** by providing your own spec file and skipping the download step. See [Convert Your Own API](#convert-your-own-api) for details.
+
+## Setup
+
+### Requirements
+
+- **Python 3.x** - Used in the conversion process for YAML processing and transformations
+- **paconn** (Power Platform Connectors CLI) - Used to validate and upload the connector to Power Automate
+
+### Installation
+
+```bash
+# Install paconn via pip
+pip install paconn
+
+# Verify installation
+paconn --version
+```
+
+For more information about paconn, see the [Power Platform Connector CLI documentation](https://learn.microsoft.com/en-us/connectors/custom-connectors/paconn-cli).
 
 ## Quick Start
 
-### Convert Fulcrum API (Default)
+### Convert Fulcrum API (Default Configuration)
 
-Simply use the GitHub Copilot prompt:
+The default pipeline downloads and converts the Fulcrum API. Simply use the GitHub Copilot prompt:
 
 ```text
 @workspace /convert
 ```
 
-Or run the scripts directly:
+Or run the pipeline directly:
 
 ```bash
-./scripts/download_fulcrum_api.sh
-./scripts/convert_openapi.sh
-./scripts/validate.sh
+./scripts/run_pipeline.sh
 ```
 
 > **Default:** Uses the `v2` branch (repository HEAD). Override with `BRANCH=branch-name` or use `@workspace /convert branch BRANCH_NAME`.
@@ -33,9 +52,7 @@ To convert from a different branch (e.g., testing a PR):
 Or set the branch manually:
 
 ```bash
-BRANCH="spike/power-automate-testing" ./scripts/download_fulcrum_api.sh
-./scripts/convert_openapi.sh
-./scripts/validate.sh
+BRANCH="spike/power-automate-testing" ./scripts/run_pipeline.sh
 ```
 
 **For Pull Requests:**
@@ -51,36 +68,69 @@ For detailed instructions and troubleshooting, see [.github/prompts/convert.prom
 
 ### What Gets Validated
 
-The validation script (`./scripts/validate.sh`) checks:
+The pipeline automatically validates:
 
-- ✓ All required files exist
-- ✓ File sizes are correct
-- ✓ JSON/YAML structure is valid
-- ✓ Swagger 2.0 specification passes validation
-- ✓ No OpenAPI Generator warnings (warnings treated as errors)
-- ✓ Power Automate compatibility requirements
-- ✓ Microsoft certification package is complete and valid
+- ✓ File structure and sizes
+- ✓ JSON/YAML syntax
+- ✓ Swagger 2.0 specification compliance
+- ✓ Power Automate compatibility (no unsupported features)
+- ✓ Power Automate trigger extensions present
+- ✓ Microsoft certification package completeness
+- ✓ Zero OpenAPI Generator warnings
 
 All generated artifacts are written to `build/` by default (configurable via the `WORK_DIR` environment variable).
 
+### Conversion Pipeline
+
+The conversion process performs these steps:
+
+1. **OpenAPI 3.1 → 3.0** - Downgrades using `@apiture/openapi-down-convert`
+2. **OpenAPI 3.0 → Swagger 2.0** - Converts using `api-spec-converter`
+3. **Swagger Cleanup** - Filters endpoints, removes unsupported features, and adds Power Automate metadata (`swagger_cleaner.py`)
+4. **Trigger Augmentation** - Adds Power Automate trigger extensions for webhooks (`trigger_augmenter.py`)
+5. **Certification Packaging** - Generates Microsoft certification artifacts (`certification_packager.py`)
+
 ### Convert Your Own API
+
+You can convert any OpenAPI 3.1 specification in two ways:
+
+**Option A: Download from a GitHub repository**
+
+Set environment variables to download from any GitHub repository:
+
+```bash
+REPO_OWNER="your-org" REPO_NAME="your-repo" BRANCH="main" ./scripts/run_pipeline.sh
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REPO_OWNER` | `fulcrumapp` | GitHub repository owner |
+| `REPO_NAME` | `api` | GitHub repository name |
+| `BRANCH` | `v2` | Git branch name |
+
+**Option B: Use a local spec file**
 
 ```bash
 # 1. Place your OpenAPI 3.1 specification in build/
 cp /path/to/your/api.json build/api-3.1.json
 
-# 2. Run the converter
-./scripts/convert_openapi.sh
-
-# 3. Validate the output
-./scripts/validate.sh
+# 2. Run the converter (skip download since you have the spec)
+./scripts/run_pipeline.sh --skip-download
 ```
+
+**Customizing the Conversion:**
+
+For non-Fulcrum APIs, you may need to customize:
+
+1. **`connector-config.yaml`** - Update publisher name, branding, and connector metadata
 
 ### Working Directory
 
-- Generated artifacts land in `build/` by default.
-- Override by exporting `WORK_DIR=/absolute/path` before running the scripts.
-- All files in `build/` are automatically gitignored.
+By default, the pipeline uses `./build/` for all generated files. Override with:
+
+```bash
+WORK_DIR=/custom/path ./scripts/run_pipeline.sh
+```
 
 ## Usage Instructions
 
@@ -113,48 +163,65 @@ This will:
     docker build -t openapi-powerautomate-compat .
     ```
 
-2. **Run the Docker container:**
-
-    Place your OpenAPI 3.1 specification file in `build/` as `api-3.1.json`.
+2. **Run the full pipeline:**
 
     ```bash
-    docker run -v "$(pwd)/build:/app" openapi-powerautomate-compat
+    docker run -v "$(pwd)/build:/app/build" openapi-powerautomate-compat
     ```
 
-### Option 3: Local Execution
+    This downloads the Fulcrum API and converts it to Power Automate compatible format. The results are written to `build/`.
 
-- Clone this repository to your local machine.
+    > **Note:** Validation is skipped when running in Docker because `paconn validate` requires interactive authentication which is not supported in containerized environments. Run `./scripts/validate.sh` locally after the Docker conversion completes to validate the output.
 
-- Add your OpenAPI 3.1 specification to `build/` and name the file:
-   `api-3.1.json`
+    **To convert from a specific branch:**
 
-**Example:**
+    ```bash
+    docker run -v "$(pwd)/build:/app/build" -e BRANCH=feature-branch openapi-powerautomate-compat
+    ```
 
-![image](https://github.com/user-attachments/assets/757f1865-37b6-404f-bfab-c87784d5acef)
+    **To download from a different repository:**
 
-- Execute the tool using the following commands:
+    ```bash
+    docker run -v "$(pwd)/build:/app/build" \
+      -e REPO_OWNER=your-org \
+      -e REPO_NAME=your-repo \
+      -e BRANCH=main \
+      openapi-powerautomate-compat
+    ```
+
+    **To skip download (use existing spec):**
+
+    ```bash
+    docker run -v "$(pwd)/build:/app/build" openapi-powerautomate-compat --skip-download
+    ```
+
+### Option 3: Running Scripts Directly
 
 ```bash
+# Run the complete pipeline
+./scripts/run_pipeline.sh
+
+# Or run individual steps
+./scripts/download_fulcrum_api.sh
 ./scripts/convert_openapi.sh
 ./scripts/validate.sh
 ```
 
-- Upon successful conversion, a confirmation message will be displayed.
-
-- The output file, `build/fulcrum-power-automate-connector.yaml`, is the final result and should be ready for import into Microsoft Power Automate. For example:
-
-![Power Automate Import Example](https://github.com/user-attachments/assets/fc9bbac6-44c5-46aa-9f55-32f9cc5e2794)
-
 ## Output Files
 
-All files are generated in `build/`:
+The conversion pipeline produces the following files in `build/`:
+
+### Intermediate Files
 
 - `api-3.1.json` - Input OpenAPI 3.1 specification
 - `components/schemas/*.json` - External schema files (if applicable)
 - `api-3.0.json` - Downgraded to OpenAPI 3.0
-- `swagger-2.0.yaml` - Converted to Swagger 2.0
-- `fulcrum-power-automate-connector.yaml` - **Final output** ready for Power Automate import
-- **`certified-connectors/Fulcrum/`** - Microsoft certification package:
+- `swagger-2.0.yaml` - Converted to Swagger 2.0 (before cleanup)
+- `fulcrum-power-automate-connector.yaml` - Cleaned Swagger 2.0 with Power Automate trigger extensions
+
+### Final Output
+
+- **`certified-connectors/Fulcrum/`** - Microsoft certification package ready for Power Automate import:
   - `apiDefinition.swagger.json` - Connector definition in JSON format
   - `apiProperties.json` - Connection parameters and branding
   - `README.md` - Connector documentation
@@ -182,13 +249,24 @@ Edit `connector-config.yaml` at the repository root to customize:
 
 ```yaml
 publisher: Fulcrum
-iconBrandColor: "#EB1300"
+displayName: Fulcrum
 version: "1.0.0"  # Required - set connector version
-authentication:
-  type: apiKey
-  displayName: Fulcrum API Token
+iconBrandColor: "#F4F4F4"
+category: Field Productivity
+supportEmail: support@fulcrumapp.com
+
+connectionParameters:
+  api_key:
+    type: securestring
+    uiDefinition:
+      displayName: API Token
+      description: Your Fulcrum API token for authentication
+
 prerequisites:
   - Active Fulcrum subscription with API access enabled
+
+knownLimitations:
+  - Rate limiting applies based on your Fulcrum plan
 ```
 
 After editing, run `./scripts/convert_openapi.sh` to regenerate the certification package.
@@ -212,8 +290,62 @@ version: "1.0.0"
 
 The version appears in the `info.version` field of the packaged `apiDefinition.swagger.json` file.
 
-## Submission
+## Deploying as a Custom Connector
+
+You can deploy the generated connector directly to your Microsoft tenant as a custom connector using the Power Platform Connectors CLI (`paconn`).
+
+### Prerequisites
+
+1. **paconn installed** (see [Installation](#installation))
+2. **Power Automate license** with custom connector permissions
+3. **Completed conversion** (run `./scripts/run_pipeline.sh` first)
+
+### First-Time Deployment
+
+1. **Login to Power Platform:**
+
+   ```bash
+   paconn login
+   ```
+
+   This opens a browser for Microsoft authentication. Sign in with your Power Platform account.
+
+2. **Create the connector:**
+
+   ```bash
+   paconn create --api-def build/certified-connectors/Fulcrum/apiDefinition.swagger.json \
+                 --api-prop build/certified-connectors/Fulcrum/apiProperties.json
+   ```
+
+3. **Save the settings file:**
+
+   After successful creation, paconn generates a `settings.json` file. Keep this file in the repository root for future updates.
+
+### Updating an Existing Connector
+
+If you have a `settings.json` file from a previous deployment:
+
+```bash
+paconn update --settings settings.json
+```
+
+This updates the connector in your tenant with the latest build.
+
+### Using GitHub Copilot Agent
+
+For guided assistance with paconn commands, use the `paconn` Copilot agent by selecting it from the Copilot mode selector:
+
+The agent can help you:
+
+- Login and authenticate
+- Create new connectors
+- Update existing connectors
+- Troubleshoot deployment issues
+
+## Certification Submission
+
 Reference the following on how to submit a connector for certification:
+
 - https://learn.microsoft.com/en-us/connectors/custom-connectors/submit-for-certification
 - https://learn.microsoft.com/en-us/connectors/custom-connectors/certification-submission
 

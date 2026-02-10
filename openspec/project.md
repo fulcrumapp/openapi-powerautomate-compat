@@ -51,9 +51,18 @@ Key goals:
 
 **Pipeline Architecture:**
 1. **Download** (`download_fulcrum_api.sh`) - Fetches spec and external schemas from GitHub
-2. **Convert** (`convert_openapi.sh`) - Three-stage conversion pipeline
-3. **Clean** (`swagger_cleaner.py`) - Transforms spec for Power Automate compatibility
-4. **Validate** (`validate.sh`) - Multi-step validation with strict warnings-as-errors
+2. **Convert** (`convert_openapi.sh`) - Three-stage conversion pipeline + transformations
+3. **Validate** (`validate.sh`) - Multi-step validation with strict warnings-as-errors
+
+**Unified Entry Point:**
+- `run_pipeline.sh` - Single script that orchestrates all steps (download → convert → validate)
+- Supports `--skip-download` and `--skip-validate` flags
+- Used by Docker, CI/CD, and manual execution
+
+**Transformation Scripts:**
+- `swagger_cleaner.py` - Filters endpoints, removes incompatibilities, adds metadata
+- `trigger_augmenter.py` - Adds Power Automate webhook trigger extensions
+- `certification_packager.py` - Generates Microsoft certification artifacts
 
 **File Organization:**
 - Scripts in `scripts/`
@@ -72,53 +81,56 @@ Key goals:
   - OpenAPI Generator CLI validation (warnings = errors)
   - Power Automate compatibility checks (no `oneOf`/`anyOf`/`allOf`)
   - Required field presence verification
+  - Certification package completeness
 
 **Manual Testing:**
-- Import `fulcrum-power-automate-connector.yaml` into Microsoft Power Automate
+- Import certification package into Microsoft Power Automate
 
 ### Git Workflow
 
 - **Default branch:** `main`
 - **Branching:** Feature branches for changes
-- **Validation:** Must pass `./scripts/validate.sh` before merge
-- **Generated files:** All artifacts in `scripts/temp/` are gitignored
+- **Validation:** Must pass `./scripts/run_pipeline.sh` before merge
+- **Generated files:** All artifacts in `build/` are gitignored
 
 ## Domain Context
 
 ### OpenAPI/Swagger Specifications
+
 - **OpenAPI 3.1** - Latest spec version, supports JSON Schema Draft 2020-12
 - **OpenAPI 3.0** - Widely supported, uses JSON Schema Draft 07
 - **Swagger 2.0** - Legacy format required by Power Automate
 
 ### Power Automate Limitations
+
 - Does not support `oneOf`, `anyOf`, `allOf` constructs
 - Requires Swagger 2.0 format specifically
 - Needs `host`, `basePath`, and `schemes` fields
 - Operations need unique `operationId` values
 
 ### Fulcrum API
+
 - REST API for Fulcrum data collection platform
 - Source specification at `fulcrumapp/api` repository
 - Uses external `$ref` to schema files in `components/schemas/`
-- Target endpoints configured in `swagger_cleaner.py`:
-  - `/v2/records.json` (GET)
-  - `/v2/records/{record_id}.json` (GET)
-  - `/v2/webhooks.json` (POST)
-  - `/v2/webhooks/{webhook_id}.json` (DELETE)
+- Target endpoints configured in `connector-config.yaml`
 
 ## Important Constraints
 
 ### Quality Standards
+
 - **Zero validation warnings** - OpenAPI Generator warnings are treated as errors
 - **Zero markdown linting errors** - All `.md` files must pass linting
 - **Correct file locations** - Prompts must be in `.github/prompts/`
 
 ### Technical Constraints
+
 - External schema references must be resolved during conversion
 - Swagger 2.0 does not support all OpenAPI 3.x features
 - File sizes expected: `api-3.1.json` ~260KB, `fulcrum-power-automate-connector.yaml` ~12KB
 
 ### Environment Requirements
+
 - Node.js 22.x for npm packages
 - Python 3.9+ with PyYAML
 - Bash shell (zsh compatible)
@@ -127,19 +139,23 @@ Key goals:
 ## External Dependencies
 
 ### GitHub Repositories
+
 - **fulcrumapp/api** - Source OpenAPI specification
   - Branch: `v2` (default) or override with `BRANCH` env var
   - Path: `reference/rest-api.json`
   - Schemas: `reference/components/schemas/*.json`
 
 ### npm Packages (via npx)
+
 - `@apiture/openapi-down-convert` - 3.1→3.0 conversion
 - `api-spec-converter` - 3.0→2.0 conversion
 - `@openapitools/openapi-generator-cli` - Validation
 - `swagger-cli` - Swagger validation
 
 ### Python Packages
+
 - `pyyaml` - YAML processing
 
 ### Target Platform
-- **Microsoft Power Automate** - Final import destination for Swagger 2.0 spec
+
+- **Microsoft Power Automate** - Final import destination for certification package

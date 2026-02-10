@@ -3,8 +3,8 @@ FROM public.ecr.aws/docker/library/python:3.9-slim-bookworm
 # Prevent Python from writing .pyc files
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Install system dependencies (curl, gnupg, Node.js)
-RUN apt-get update && apt-get install -y curl gnupg && \
+# Install system dependencies (curl, gnupg, Node.js, jq)
+RUN apt-get update && apt-get install -y curl gnupg jq && \
     curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs && \
     apt-get clean && \
@@ -16,14 +16,24 @@ WORKDIR /app
 # Install Python project dependencies (globally in the image)
 RUN pip install pyyaml
 
-RUN npm install @apiture/openapi-down-convert api-spec-converter
+# Install npm packages globally for conversion and validation
+RUN npm install -g @apiture/openapi-down-convert api-spec-converter swagger-cli @openapitools/openapi-generator-cli
 
-# Copy application scripts
-COPY scripts/convert_openapi.sh .
-COPY scripts/swagger_cleaner.py scripts/
+# Copy all application scripts
+COPY scripts/ scripts/
 
-# Make convert_openapi.sh executable
-RUN chmod +x convert_openapi.sh
+# Copy connector configuration
+COPY connector-config.yaml .
 
-# Set the entrypoint
-ENTRYPOINT ["./convert_openapi.sh"]
+# Make scripts executable
+RUN chmod +x scripts/*.sh
+
+# Set the working directory for output
+ENV WORK_DIR=/app/build
+
+# Allow passing BRANCH as environment variable
+# Usage: docker run -e BRANCH=feature-branch ...
+
+# Skip validation by default since paconn authentication is not supported in Docker
+ENTRYPOINT ["scripts/run_pipeline.sh", "--skip-validate"]
+
