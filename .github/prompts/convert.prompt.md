@@ -1,4 +1,8 @@
-````prompt
+---
+mode: agent
+description: Convert Fulcrum API specification to Power Automate compatible format
+---
+
 # Fulcrum API Conversion Prompt
 
 This document provides instructions for downloading and converting the Fulcrum API OpenAPI specification to a format compatible with Microsoft Power Automate.
@@ -8,13 +12,7 @@ This document provides instructions for downloading and converting the Fulcrum A
 To convert using the default configuration:
 
 ```bash
-# Clean the build directory first
-rm -rf build/
-
-# Run the conversion pipeline
-./scripts/download_fulcrum_api.sh
-./scripts/convert_openapi.sh
-./scripts/validate.sh
+./scripts/run_pipeline.sh
 ```
 
 **Default settings:**
@@ -31,7 +29,7 @@ rm -rf build/
 To download from a different branch, set the `BRANCH` variable before running:
 
 ```bash
-BRANCH="spike/power-automate-testing" ./scripts/download_fulcrum_api.sh
+BRANCH="spike/power-automate-testing" ./scripts/run_pipeline.sh
 ```
 
 ### Option 2: Convert from a Pull Request
@@ -40,7 +38,7 @@ To test a specific pull request, use the PR's head branch:
 
 ```bash
 # Find the branch name from the PR page, then use it
-BRANCH="feature/new-endpoints" ./scripts/download_fulcrum_api.sh
+BRANCH="feature/new-endpoints" ./scripts/run_pipeline.sh
 ```
 
 You can find the branch name:
@@ -49,7 +47,23 @@ You can find the branch name:
 2. Look for "wants to merge commits into main from **branch-name**"
 3. Use that branch name
 
-### Option 3: Convert from a Different Repository
+### Option 3: Skip Download (Use Existing Spec)
+
+If you already have `api-3.1.json` in the build directory:
+
+```bash
+./scripts/run_pipeline.sh --skip-download
+```
+
+### Option 4: Skip Validation (Debug Mode)
+
+To only download and convert without validation:
+
+```bash
+./scripts/run_pipeline.sh --skip-validate
+```
+
+### Option 5: Convert from a Different Repository
 
 Edit `scripts/download_fulcrum_api.sh` and modify these variables:
 
@@ -69,66 +83,41 @@ SCHEMAS_BASE_PATH="path/to/schemas"       # Path to external schemas (optional)
 - Python 3 with PyYAML (for cleanup script)
 - (Optional) jq for JSON validation
 
-## Step 0: Clean the Build Directory (Recommended)
+## Pipeline Steps
 
-Before starting the conversion, clean any existing build artifacts:
+The `run_pipeline.sh` script executes these steps:
 
-```bash
-rm -rf build/
-```
+### Step 1: Download (unless `--skip-download`)
 
-This ensures you're working with a fresh state and prevents issues from stale files.
+Downloads the OpenAPI 3.1 specification from the Fulcrum API repository:
 
-## Step 1: Download the Fulcrum API Specification
+- Downloads `rest-api.json` from the `fulcrumapp/api` repository
+- Uses the configured branch (default: `v2`)
+- Saves it as `api-3.1.json` in `build/`
+- Downloads all external schema files
+- Validates that the downloaded files are valid JSON
 
-Download the OpenAPI 3.1 specification from the Fulcrum API repository:
+### Step 2: Convert
 
-```bash
-./scripts/download_fulcrum_api.sh
-```
+Runs the conversion pipeline:
 
-This script will:
-- Download `rest-api.json` from the `fulcrumapp/api` repository
-- Use the configured branch (default: `main`)
-- Save it as `api-3.1.json` in `build/`
-- Download all external schema files
-- Validate that the downloaded files are valid JSON
-
-## Step 2: Convert to Power Automate Compatible Format
-
-Run the conversion pipeline:
-
-```bash
-./scripts/convert_openapi.sh
-```
-
-This script performs three conversions:
 1. **OpenAPI 3.1 → OpenAPI 3.0**: Downgrades version (Power Automate doesn't support 3.1)
 2. **OpenAPI 3.0 → Swagger 2.0**: Converts to older format (required by Power Automate)
 3. **Cleanup**: Applies Power Automate-specific transformations and removes unused models
+4. **Trigger Augmentation**: Adds Power Automate webhook trigger extensions
+5. **Certification Packaging**: Generates Microsoft certification artifacts
 
-## Step 3: Validate the Output
+### Step 3: Validate (unless `--skip-validate`)
 
-Validate that the conversion was successful:
+Validates that the conversion was successful:
 
-```bash
-./scripts/validate.sh
-```
-
-This validation script checks:
 - ✓ All required files exist
 - ✓ File sizes are reasonable
 - ✓ JSON/YAML structure is valid
 - ✓ Swagger 2.0 specification passes validation
 - ✓ No OpenAPI Generator warnings (treats warnings as errors)
 - ✓ Power Automate compatibility requirements met
-
-## Step 4: Import to Power Automate
-
-1. Open Power Automate: https://make.powerautomate.com
-2. Go to **Data** → **Custom connectors** → **New custom connector** → **Import an OpenAPI file**
-3. Upload `build/fulcrum-power-automate-connector.yaml`
-4. Configure and test your connector
+- ✓ Microsoft certification package is complete
 
 ## Output Files
 
@@ -138,19 +127,32 @@ All files are generated in `build/` (configurable via `WORK_DIR` environment var
 - `components/schemas/*.json` - External schema files
 - `api-3.0.json` - Downgraded to OpenAPI 3.0
 - `swagger-2.0.yaml` - Converted to Swagger 2.0
-- `fulcrum-power-automate-connector.yaml` - **Final output** ready for Power Automate
+- `fulcrum-power-automate-connector.yaml` - Cleaned and augmented for Power Automate
+- `certified-connectors/Fulcrum/` - **Final output** Microsoft certification package:
+  - `apiDefinition.swagger.json`
+  - `apiProperties.json`
+  - `README.md`
+
+## Import to Power Automate
+
+1. Open Power Automate: https://make.powerautomate.com
+2. Go to **Data** → **Custom connectors** → **New custom connector** → **Import an OpenAPI file**
+3. Upload `build/certified-connectors/Fulcrum/apiDefinition.swagger.json`
+4. Configure and test your connector
 
 ## Troubleshooting
 
 ### Download Issues
 
 If download fails:
+
 1. Check internet connection
 2. Verify the branch exists in the repository
 3. Check if the file path is correct in the repository
 4. Ensure you have access to the repository (public repos don't need authentication)
 
 **To verify branch/file exists:**
+
 ```bash
 # For main branch
 curl -I "https://raw.githubusercontent.com/fulcrumapp/api/main/reference/rest-api.json"
@@ -162,13 +164,17 @@ curl -I "https://raw.githubusercontent.com/fulcrumapp/api/BRANCH_NAME/reference/
 ### Conversion Issues
 
 If conversion fails:
-1. Ensure `api-3.1.json` is valid JSON
+
+1. Ensure `build/api-3.1.json` is valid JSON
 2. Check that Node.js packages are available:
+
    ```bash
    npx @apiture/openapi-down-convert --version
    npx api-spec-converter --version
    ```
+
 3. Verify Python and PyYAML are installed:
+
    ```bash
    python3 --version
    python3 -c "import yaml; print(yaml.__version__)"
@@ -177,7 +183,8 @@ If conversion fails:
 ### Validation Issues
 
 If validation fails:
-1. Review the specific error messages from `./scripts/validate.sh`
+
+1. Review the specific error messages
 2. Check that all required files were generated in `build/`
 3. Ensure no OpenAPI Generator warnings (warnings are treated as errors)
 4. Verify file sizes are reasonable (~260KB for api-3.1.json, ~12KB for fulcrum-power-automate-connector.yaml)
@@ -185,7 +192,8 @@ If validation fails:
 ### Power Automate Import Issues
 
 Common issues and solutions:
-- **"Invalid OpenAPI file"**: Ensure you're using `fulcrum-power-automate-connector.yaml`
+
+- **"Invalid OpenAPI file"**: Ensure you're using `apiDefinition.swagger.json` from the certification package
 - **"Unsupported features"**: The cleanup script should handle most issues automatically
 - **Large file size**: Power Automate has size limits; consider reducing endpoints
 
@@ -204,36 +212,40 @@ rm -rf build/
 Override the default working directory:
 
 ```bash
-export WORK_DIR=/path/to/custom/directory
+WORK_DIR=/path/to/custom/directory ./scripts/run_pipeline.sh
+```
+
+### Running Individual Steps
+
+For debugging, you can run individual steps:
+
+```bash
+# Step 1: Download only
 ./scripts/download_fulcrum_api.sh
+
+# Step 2: Convert only
 ./scripts/convert_openapi.sh
+
+# Step 3: Validate only
 ./scripts/validate.sh
 ```
 
 ### Testing Multiple Branches
 
 ```bash
-# Clean first
-rm -rf build/
-
 # Test main branch
-BRANCH="main" ./scripts/download_fulcrum_api.sh
-./scripts/convert_openapi.sh
-./scripts/validate.sh
-
-# Clean up
 rm -rf build/
+BRANCH="main" ./scripts/run_pipeline.sh
 
 # Test a feature branch
-BRANCH="feature/new-endpoints" ./scripts/download_fulcrum_api.sh
-./scripts/convert_openapi.sh
-./scripts/validate.sh
+rm -rf build/
+BRANCH="feature/new-endpoints" ./scripts/run_pipeline.sh
 ```
 
 ## Notes
 
 - All temporary and output files are in `build/` and are gitignored
-- The download script is idempotent - safe to run multiple times
+- The pipeline is idempotent - safe to run multiple times
 - External schema references are automatically downloaded and resolved
 - Unused models are automatically detected and removed during cleanup
 - Set `BRANCH` environment variable to test different branches or PRs without editing files

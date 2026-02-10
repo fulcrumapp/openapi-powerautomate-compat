@@ -21,7 +21,11 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ## Required Validation Steps
 
-When making changes to this repository, you **MUST** run the complete download, convert, and validation workflow to ensure the conversion pipeline is working correctly.
+When making changes to this repository, you **MUST** run the complete pipeline to ensure the conversion is working correctly:
+
+```bash
+./scripts/run_pipeline.sh
+```
 
 ## Code Quality Standards
 
@@ -38,22 +42,21 @@ These standards are automatically checked by `./scripts/validate.sh`.
 The easiest way to validate everything in one command:
 
 ```bash
-./scripts/validate.sh
+./scripts/run_pipeline.sh
 ```
 
 This script automatically:
 
-- ✓ Checks all required files exist
-- ✓ Validates file sizes
-- ✓ Validates JSON/YAML structure
-- ✓ Runs Swagger CLI validation
-- ✓ Verifies Swagger version
-- ✓ Checks required fields
-- ✓ Scans for Power Automate incompatibilities
-- ✓ **Checks for OpenAPI Generator warnings (treats warnings as ERRORS)**
-- ✓ **Verifies Power Automate trigger extensions are present**
-- ✓ **Validates Microsoft certification package (Step 11)**
-- ✓ **Runs paconn validate for Power Automate certification (Step 12)**
+- ✓ Downloads the API specification
+- ✓ Converts OpenAPI 3.1 → 3.0 → Swagger 2.0
+- ✓ Cleans and transforms the spec for Power Automate
+- ✓ Adds Power Automate trigger extensions
+- ✓ Generates Microsoft certification package
+- ✓ Validates all output files
+- ✓ Checks for OpenAPI Generator warnings (treats warnings as ERRORS)
+- ✓ Verifies Power Automate trigger extensions are present
+- ✓ Validates Microsoft certification package
+- ✓ Runs paconn validate for Power Automate certification
 - ✓ Provides clear pass/fail results
 
 **Expected Output:**
@@ -66,6 +69,19 @@ The fulcrum-power-automate-connector.yaml file is ready for import into Power Au
 ================================================
 ```
 
+**Pipeline Options:**
+
+```bash
+# Skip download (use existing api-3.1.json)
+./scripts/run_pipeline.sh --skip-download
+
+# Skip validation (just download and convert)
+./scripts/run_pipeline.sh --skip-validate
+
+# Use a specific branch
+BRANCH=feature-branch ./scripts/run_pipeline.sh
+```
+
 If you need to run individual steps or debug issues, use the manual workflow below.
 
 ## Complete Validation Workflow (Manual)
@@ -74,7 +90,7 @@ If you need to run individual steps or debug issues, use the manual workflow bel
 
 ```bash
 # Remove all generated files to start fresh
-rm -rf components/ api-3.1.json api-3.0.json swagger-2.0.yaml fulcrum-power-automate-connector.yaml
+rm -rf build/
 ```
 
 ### Step 2: Download
@@ -141,10 +157,10 @@ Validate the final Swagger 2.0 specification:
 
 ```bash
 # Using OpenAPI Generator CLI
-npx @openapitools/openapi-generator-cli validate -i fulcrum-power-automate-connector.yaml
+npx @openapitools/openapi-generator-cli validate -i build/fulcrum-power-automate-connector.yaml
 
 # Using Swagger CLI
-npx swagger-cli validate fulcrum-power-automate-connector.yaml
+npx swagger-cli validate build/fulcrum-power-automate-connector.yaml
 ```
 
 **Expected Output:**
@@ -160,25 +176,25 @@ Check for Power Automate-specific requirements:
 
 ```bash
 # Check that the file is valid YAML
-python3 -c "import yaml; yaml.safe_load(open('fulcrum-power-automate-connector.yaml'))"
+python3 -c "import yaml; yaml.safe_load(open('build/fulcrum-power-automate-connector.yaml'))"
 
 # Verify Swagger version
-grep "swagger:" fulcrum-power-automate-connector.yaml
+grep "swagger:" build/fulcrum-power-automate-connector.yaml
 
 # Verify required fields exist
-grep -E "(swagger:|info:|paths:|host:)" fulcrum-power-automate-connector.yaml
+grep -E "(swagger:|info:|paths:|host:)" build/fulcrum-power-automate-connector.yaml
 
 # Verify Power Automate trigger extensions
-grep "x-ms-trigger:" fulcrum-power-automate-connector.yaml
-grep "x-ms-notification-url:" fulcrum-power-automate-connector.yaml
-grep "x-ms-notification-content:" fulcrum-power-automate-connector.yaml
-grep "FulcrumWebhookPayload:" fulcrum-power-automate-connector.yaml
+grep "x-ms-trigger:" build/fulcrum-power-automate-connector.yaml
+grep "x-ms-notification-url:" build/fulcrum-power-automate-connector.yaml
+grep "x-ms-notification-content:" build/fulcrum-power-automate-connector.yaml
+grep "FulcrumWebhookPayload:" build/fulcrum-power-automate-connector.yaml
 
 # Verify Location header for webhook management (required for Power Automate trigger lifecycle)
-grep -A 5 "'201':" fulcrum-power-automate-connector.yaml | grep -A 3 "headers:" | grep "Location:"
+grep -A 5 "'201':" build/fulcrum-power-automate-connector.yaml | grep -A 3 "headers:" | grep "Location:"
 
 # Verify DELETE endpoint is marked as internal (required for Power Automate trigger cleanup)
-grep -A 10 "DELETE /v2/webhooks/{webhook_id}" fulcrum-power-automate-connector.yaml | grep "x-ms-visibility: internal"
+grep -A 10 "DELETE /v2/webhooks/{webhook_id}" build/fulcrum-power-automate-connector.yaml | grep "x-ms-visibility: internal"
 
 # Verify certification package files
 ls -lh build/certified-connectors/Fulcrum/
@@ -197,9 +213,8 @@ ls -lh build/certified-connectors/Fulcrum/
 
 Before committing changes, verify:
 
-- [ ] `./scripts/download_fulcrum_api.sh` completes without errors
+- [ ] `./scripts/run_pipeline.sh` completes without errors
 - [ ] All 28 schema files are downloaded
-- [ ] `./scripts/convert_openapi.sh` completes successfully
 - [ ] `fulcrum-power-automate-connector.yaml` passes Swagger CLI validation with "is valid" message
 - [ ] **ZERO validation warnings** from OpenAPI Generator CLI (warnings are treated as errors)
 - [ ] **Power Automate trigger extensions are present** (`x-ms-trigger`, `x-ms-notification-url`, `x-ms-notification-content`)
@@ -282,7 +297,7 @@ Before committing changes, verify:
 
 - **Solution:** Run `paconn login` (or `python3 -m paconn login`) to authenticate with Power Platform
 - **Note:** Authentication is required to complete Step 12 validation
-- **After login:** Run `./scripts/validate.sh` again to complete validation
+- **After login:** Run `./scripts/run_pipeline.sh` again to complete validation
 
 **Problem:** Validation reports errors
 
@@ -304,7 +319,7 @@ To test with a different API specification:
    SCHEMAS_BASE_PATH="path/to/schemas"  # if external schemas exist
    ```
 
-2. Run the complete validation workflow (Steps 1-6 above)
+2. Run the complete pipeline: `./scripts/run_pipeline.sh`
 
 3. Document any new issues or required adjustments to the conversion pipeline
 
@@ -312,26 +327,28 @@ To test with a different API specification:
 
 When making changes to:
 
+- `scripts/run_pipeline.sh`
 - `scripts/download_fulcrum_api.sh`
 - `scripts/convert_openapi.sh`
 - `scripts/swagger_cleaner.py`
 - `scripts/trigger_augmenter.py`
 - `scripts/certification_packager.py`
+- `scripts/validate.sh`
 - `connector-config.yaml`
 - Dockerfile
 
 You **MUST**:
 
-1. Run the complete validation workflow
+1. Run the complete pipeline: `./scripts/run_pipeline.sh`
 2. Compare before/after results
 3. Document any changes in behavior
 4. Update this AGENTS.md file if validation steps change
 
 ## Success Criteria
 
-A successful validation run must:
+A successful pipeline run must:
 
-1. Complete all 6 steps without critical errors
+1. Complete all steps without critical errors
 2. Produce valid Swagger 2.0 output
 3. Generate a file size comparable to reference sizes
 4. Pass both OpenAPI Generator and Swagger CLI validation
@@ -341,7 +358,7 @@ A successful validation run must:
 
 When reporting issues:
 
-1. Include which validation step failed
+1. Include which pipeline step failed
 2. Provide complete error messages
 3. Document the state of generated files
 4. Include validation output from both tools
@@ -353,16 +370,16 @@ Optional but recommended:
 
 ```bash
 # Check for specific Power Automate incompatibilities
-grep -n "oneOf\|anyOf\|allOf" fulcrum-power-automate-connector.yaml
+grep -n "oneOf\|anyOf\|allOf" build/fulcrum-power-automate-connector.yaml
 
 # Verify no OpenAPI 3.x features remain
-grep -n "OpenAPI\|3\\.0\|3\\.1" fulcrum-power-automate-connector.yaml
+grep -n "OpenAPI\|3\\.0\|3\\.1" build/fulcrum-power-automate-connector.yaml
 
 # Count endpoints
-grep -c "operationId:" fulcrum-power-automate-connector.yaml
+grep -c "operationId:" build/fulcrum-power-automate-connector.yaml
 
 # Check for required security schemes
-grep -A5 "securityDefinitions:" fulcrum-power-automate-connector.yaml
+grep -A5 "securityDefinitions:" build/fulcrum-power-automate-connector.yaml
 ```
 
 ## Version Information
@@ -415,7 +432,6 @@ faqs:
 To update connector branding, documentation, or authentication:
 
 1. Edit `connector-config.yaml` at the repository root
-2. Run `./scripts/convert_openapi.sh` to regenerate certification files
-3. Run `./scripts/validate.sh` to verify changes
+2. Run `./scripts/run_pipeline.sh` to regenerate certification files
 
 **Note:** Keep prerequisites and limitations concise. Avoid mentioning specific plan types or redundant setup instructions between "Obtaining Credentials" and "Getting Started" sections.
