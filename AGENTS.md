@@ -27,8 +27,9 @@ When making changes to this repository, you **MUST** run the complete pipeline t
 ./scripts/run_pipeline.sh
 ```
 
-Install locked conversion tools with `npm ci --omit=dev --omit=optional` and
-`python3 -m pip install -r requirements.txt`. For local validation, use
+Install locked conversion tools with `npm ci --omit=dev --omit=optional`.
+Conversion uses Node.js 22+ and `js-yaml`; Python, pip and PyYAML are not needed.
+For local validation, use
 `npm ci --include=dev --omit=optional` and Java 11+, or build the Docker
 `validation` target. Run `npm test` for offline conversion regressions.
 
@@ -37,6 +38,8 @@ authorized. This still runs all local validation; report that authenticated
 certification validation was not run. Do not log in or deploy implicitly.
 The default Docker image installs conversion dependencies only and still
 uses `--skip-validate`; the opt-in `validation` target uses `--skip-paconn`.
+Both images use a Node base without Python. Only an explicitly installed
+`paconn` CLI may require Python for authenticated Power Platform operations.
 
 ## Code Quality Standards
 
@@ -190,7 +193,7 @@ Check for Power Automate-specific requirements:
 
 ```bash
 # Check that the file is valid YAML
-python3 -c "import yaml; yaml.safe_load(open('build/fulcrum-power-automate-connector.yaml'))"
+node scripts/spec_io.cjs build/fulcrum-power-automate-connector.yaml
 
 # Verify Swagger version
 grep "swagger:" build/fulcrum-power-automate-connector.yaml
@@ -216,7 +219,7 @@ ls -lh build/certified-connectors/Fulcrum/
 
 **Expected Output:**
 
-- No Python errors
+- No YAML parsing errors
 - `swagger: '2.0'` is present
 - All required fields exist
 - All Power Automate trigger extensions are present (`x-ms-trigger`, `x-ms-notification-url`, `x-ms-notification-content`)
@@ -276,23 +279,34 @@ Before committing changes, verify:
 
 **Problem:** Cleanup script fails
 
-- **Cause:** Missing PyYAML or invalid YAML
-- **Solution:** `pip install pyyaml`
-- **Verify:** `python3 -c "import yaml; print(yaml.__version__)"`
+- **Cause:** Missing Node dependencies or invalid YAML
+- **Solution:** `npm ci --omit=dev --omit=optional`
+- **Verify:** `node scripts/spec_io.cjs build/swagger-2.0.yaml`
 
 **Problem:** Trigger augmentation script fails
 
 - **Cause:** Missing webhook endpoint in spec or invalid YAML
 - **Check:** Verify `POST /v2/webhooks.json` exists in `swagger-2.0.yaml`
-- **Verify:** Check that PyYAML is installed
-- **Debug:** Run `python3 scripts/trigger_augmenter.py fulcrum-power-automate-connector.yaml` manually
+- **Verify:** Check that locked Node dependencies are installed
+- **Debug:** Run the augmenter manually:
+
+```bash
+node scripts/trigger_augmenter.cjs \
+  build/fulcrum-power-automate-connector.yaml
+```
 
 **Problem:** Certification packager fails
 
 - **Cause:** Missing or invalid `connector-config.yaml`
 - **Check:** Verify `connector-config.yaml` exists at repository root
 - **Verify:** Check that required fields are present (publisher, displayName, iconBrandColor, etc.)
-- **Debug:** Run `python3 scripts/certification_packager.py build/fulcrum-power-automate-connector.yaml connector-config.yaml build/certified-connectors/Fulcrum` manually
+- **Debug:** Run the packager manually:
+
+```bash
+node scripts/certification_packager.cjs \
+  build/fulcrum-power-automate-connector.yaml \
+  connector-config.yaml build/certified-connectors/Fulcrum
+```
 
 ### Validation Issues
 
@@ -344,9 +358,10 @@ When making changes to:
 - `scripts/run_pipeline.sh`
 - `scripts/download_fulcrum_api.sh`
 - `scripts/convert_openapi.sh`
-- `scripts/swagger_cleaner.py`
-- `scripts/trigger_augmenter.py`
-- `scripts/certification_packager.py`
+- `scripts/swagger_cleaner.cjs`
+- `scripts/trigger_augmenter.cjs`
+- `scripts/certification_packager.cjs`
+- `scripts/spec_io.cjs`
 - `scripts/validate.sh`
 - `connector-config.yaml`
 - Dockerfile
@@ -402,7 +417,6 @@ Document the versions of tools used:
 
 ```bash
 node --version
-python3 --version
 npx @openapitools/openapi-generator-cli version
 npx swagger-cli --version
 npx @apiture/openapi-down-convert --version

@@ -14,7 +14,8 @@ Key goals:
 
 ### Languages
 - **Bash** - Shell scripts for orchestration (`download_fulcrum_api.sh`, `convert_openapi.sh`, `validate.sh`)
-- **Python 3.9+** - Transformation logic (`swagger_cleaner.py`)
+- **Node.js CommonJS** - Transformation logic (`swagger_cleaner.cjs`,
+  `trigger_augmenter.cjs`, `certification_packager.cjs`)
 - **YAML/JSON** - OpenAPI specification formats
 
 ### Tools & Libraries
@@ -23,7 +24,7 @@ Key goals:
 - **api-spec-converter** - OpenAPI 3.0 → Swagger 2.0 conversion
 - **@openapitools/openapi-generator-cli 7.18.0** - Specification validation
 - **swagger-cli** - Additional Swagger validation
-- **PyYAML** - Python YAML parsing and generation
+- **js-yaml** - YAML parsing and generation, shared with the Node conversion tools
 - **Docker** - Containerized execution environment
 
 ### Infrastructure
@@ -41,11 +42,12 @@ Key goals:
 - Use `pushd`/`popd` for directory changes
 - Prefix output with `✓` for success, `✗` for failure, `⚠` for warnings
 
-**Python:**
-- Use type hints for function signatures
-- Use docstrings for all functions
-- Constants in UPPER_SNAKE_CASE (e.g., `ENDPOINTS_TO_KEEP`)
-- Functions in snake_case
+**Node.js:**
+
+- Use CommonJS (`.cjs`) for standalone scripts
+- Use built-in Node modules and existing locked dependencies
+- Constants in UPPER_SNAKE_CASE (e.g., `HTTP_METHODS`)
+- Functions in camelCase
 
 ### Architecture Patterns
 
@@ -60,9 +62,11 @@ Key goals:
 - Used by Docker, CI/CD, and manual execution
 
 **Transformation Scripts:**
-- `swagger_cleaner.py` - Filters endpoints, removes incompatibilities, adds metadata
-- `trigger_augmenter.py` - Adds Power Automate webhook trigger extensions
-- `certification_packager.py` - Generates Microsoft certification artifacts
+
+- `swagger_cleaner.cjs` - Filters endpoints, removes incompatibilities, adds metadata
+- `trigger_augmenter.cjs` - Adds Power Automate webhook trigger extensions
+- `certification_packager.cjs` - Generates Microsoft certification artifacts
+- `spec_io.cjs` - Shared JSON/YAML file handling and local YAML syntax validation
 
 **File Organization:**
 - Scripts in `scripts/`
@@ -133,7 +137,7 @@ Key goals:
 ### Environment Requirements
 
 - Node.js 22.x for npm packages
-- Python 3.9+ with PyYAML
+- Java 11+ for local validation; no Python or PyYAML needed
 - Bash shell (zsh compatible)
 - Optional: jq for JSON validation
 
@@ -158,9 +162,11 @@ Key goals:
 - The default Docker image excludes development tools. The `validation` target
   includes them and Java, and runs with `--skip-paconn` for local checks only.
 
-### Python Packages
+### Optional Authenticated Validation
 
-- `pyyaml` - YAML processing
+- `paconn` is installed separately and may require Python.
+- `--skip-paconn` runs all local validation without that CLI or Power Platform access.
+- Neither conversion nor either Docker target installs Python, pip or PyYAML.
 
 ### Target Platform
 

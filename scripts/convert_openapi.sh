@@ -48,29 +48,28 @@ if ! "${TOOLS_DIR}/api-spec-converter" --from=openapi_3 --to=swagger_2 --syntax=
     exit 1
 fi
 
-# Run swagger_cleaner.py
-# pyyaml is installed globally in the Docker image
-if ! python3 "${SCRIPT_DIR}/swagger_cleaner.py" "${SWAGGER_PATH}" "${SWAGGER_CLEAN_PATH}"; then
-    echo "Error: swagger_cleaner.py execution failed!"
+# Clean the Swagger specification using the locked Node YAML dependency.
+if ! node "${SCRIPT_DIR}/swagger_cleaner.cjs" "${SWAGGER_PATH}" "${SWAGGER_CLEAN_PATH}"; then
+    echo "Error: swagger_cleaner.cjs execution failed!"
     popd >/dev/null
     exit 1
 fi
 
-# Run trigger_augmenter.py to add Power Automate trigger extensions
-if ! python3 "${SCRIPT_DIR}/trigger_augmenter.py" "${SWAGGER_CLEAN_PATH}"; then
-    echo "Error: trigger_augmenter.py execution failed!"
+# Add Power Automate trigger extensions.
+if ! node "${SCRIPT_DIR}/trigger_augmenter.cjs" "${SWAGGER_CLEAN_PATH}"; then
+    echo "Error: trigger_augmenter.cjs execution failed!"
     popd >/dev/null
     exit 1
 fi
 
 popd >/dev/null
 
-# Run certification_packager.py to generate Microsoft certification artifacts
+# Generate Microsoft certification artifacts.
 CERT_OUTPUT_DIR="${WORK_DIR}/certified-connectors/Fulcrum"
 CONFIG_PATH="${REPO_ROOT}/connector-config.yaml"
 
-if ! python3 "${SCRIPT_DIR}/certification_packager.py" "${SWAGGER_CLEAN_PATH}" "${CONFIG_PATH}" "${CERT_OUTPUT_DIR}"; then
-    echo "Error: certification_packager.py execution failed!"
+if ! node "${SCRIPT_DIR}/certification_packager.cjs" "${SWAGGER_CLEAN_PATH}" "${CONFIG_PATH}" "${CERT_OUTPUT_DIR}"; then
+    echo "Error: certification_packager.cjs execution failed!"
     exit 1
 fi
 
