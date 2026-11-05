@@ -6,6 +6,14 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 WORK_DIR_DEFAULT="${REPO_ROOT}/build"
 WORK_DIR="${WORK_DIR:-${WORK_DIR_DEFAULT}}"
+TOOLS_DIR="${REPO_ROOT}/node_modules/.bin"
+
+for tool in openapi-down-convert api-spec-converter; do
+    if [[ ! -x "${TOOLS_DIR}/${tool}" ]]; then
+        echo "Error: ${tool} not installed. Run npm ci --omit=dev --omit=optional in ${REPO_ROOT}." >&2
+        exit 1
+    fi
+done
 
 API_31_PATH="${WORK_DIR}/api-3.1.json"
 API_30_PATH="${WORK_DIR}/api-3.0.json"
@@ -19,15 +27,22 @@ fi
 
 pushd "${WORK_DIR}" >/dev/null
 
+RESOLVED_PATH=$(mktemp "${WORK_DIR}/api-3.1-resolved.XXXXXX")
+trap 'rm -f "${RESOLVED_PATH}"' EXIT
+if ! node "${SCRIPT_DIR}/resolve_external_refs.cjs" "${API_31_PATH}" "${RESOLVED_PATH}"; then
+    echo "Error: External schema resolution failed!" >&2
+    exit 1
+fi
+
 # OpenAPI 3.1 to OpenAPI 3.0
-if ! npm_config_yes=true npx @apiture/openapi-down-convert --input "${API_31_PATH##${WORK_DIR}/}" --output "${API_30_PATH##${WORK_DIR}/}"; then
+if ! "${TOOLS_DIR}/openapi-down-convert" --input "${RESOLVED_PATH}" --output "${API_30_PATH##${WORK_DIR}/}"; then
     echo "Error: OpenAPI 3.1 to 3.0 conversion failed!"
     popd >/dev/null
     exit 1
 fi
 
 # OpenAPI 3.0 to Swagger 2.0
-if ! npm_config_yes=true npx api-spec-converter --from=openapi_3 --to=swagger_2 --syntax=yaml "${API_30_PATH##${WORK_DIR}/}" > "${SWAGGER_PATH##${WORK_DIR}/}"; then
+if ! "${TOOLS_DIR}/api-spec-converter" --from=openapi_3 --to=swagger_2 --syntax=yaml "${API_30_PATH##${WORK_DIR}/}" > "${SWAGGER_PATH##${WORK_DIR}/}"; then
     echo "Error: OpenAPI 3.0 to Swagger 2.0 conversion failed!"
     popd >/dev/null
     exit 1

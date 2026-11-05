@@ -8,20 +8,39 @@ Converts OpenAPI 3.1 specifications to Swagger 2.0 format compatible with Micros
 
 ### Requirements
 
-- **Python 3.x** - Used in the conversion process for YAML processing and transformations
-- **paconn** (Power Platform Connectors CLI) - Used to validate and upload the connector to Power Automate
+- **Node.js 22+**, **Python 3.9+**, **Bash** and **curl** for conversion.
+- **Java 11+** for local OpenAPI Generator validation.
+- **paconn** only for authenticated Power Platform validation or deployment;
+  it is not needed to generate the connector.
 
 ### Installation
 
 ```bash
-# Install paconn via pip
-pip install paconn
+# Conversion only: locked dependencies, no unused format adapters or validators
+npm ci --omit=dev --omit=optional
+python3 -m pip install -r requirements.txt
+./scripts/run_pipeline.sh --skip-validate
 
-# Verify installation
-paconn --version
+# Include developer tools when local validation is needed
+npm ci --include=dev --omit=optional
+./scripts/run_pipeline.sh --skip-paconn
 ```
 
-For more information about paconn, see the [Power Platform Connector CLI documentation](https://learn.microsoft.com/en-us/connectors/custom-connectors/paconn-cli).
+`--skip-paconn` runs all local specification and package checks without
+contacting Power Platform. The default pipeline still requires `paconn` and
+authentication for its final certification check. Install it separately with
+`python3 -m pip install paconn` only when that check or deployment is needed.
+See the [Power Platform Connector CLI documentation](https://learn.microsoft.com/en-us/connectors/custom-connectors/paconn-cli).
+
+Conversion uses repository-local executables from `package-lock.json`; it
+does not download tools through `npx` at runtime. `.npmrc` omits optional
+dependencies by default. `swagger2openapi` is an explicit runtime dependency
+because `api-spec-converter` requires it to register the OpenAPI 3 and
+Swagger 2 formats, even for this downgrade direction. Commander 2 is shared
+explicitly with the converter and its `z-schema` CLI dependency so an
+incompatible hoisted Commander version is not used when optional packages
+are omitted. RAML, API Blueprint, Google Discovery and Swagger 1 adapters
+are not installed.
 
 ## Quick Start
 
@@ -89,6 +108,19 @@ The conversion process performs these steps:
 3. **Swagger Cleanup** - Filters endpoints, removes unsupported features, and adds Power Automate metadata (`swagger_cleaner.py`)
 4. **Trigger Augmentation** - Adds Power Automate trigger extensions for webhooks (`trigger_augmenter.py`)
 5. **Certification Packaging** - Generates Microsoft certification artifacts (`certification_packager.py`)
+
+Before downgrading, `resolve_external_refs.cjs` resolves external JSON/YAML
+schemas relative to their containing files. Internal references remain
+references, including recursive models. Missing, invalid or circular external
+references fail explicitly instead of producing an incomplete package.
+External schemas therefore receive the same OpenAPI 3.1 downgrade as the
+main document. Cleanup removes only definitions unreachable from the retained
+operations and extensions; trigger augmentation supports both referenced and
+inlined webhook request schemas.
+
+The local compatibility scan reports remaining composition keywords for
+review; it does not flatten `allOf` or guarantee acceptance by Power Platform.
+Swagger CLI failures and all OpenAPI Generator warnings are fatal.
 
 ### Convert Your Own API
 
@@ -171,7 +203,20 @@ This will:
 
     This downloads the Fulcrum API and converts it to Power Automate compatible format. The results are written to `build/`.
 
-    > **Note:** Validation is skipped when running in Docker because `paconn validate` requires interactive authentication which is not supported in containerized environments. Run `./scripts/validate.sh` locally after the Docker conversion completes to validate the output.
+    The default image contains conversion dependencies only, not validation
+    CLIs, Java or `paconn`. Validation is skipped by default.
+
+    **For local validation in Docker (no Power Platform authentication):**
+
+    ```bash
+    docker build --target validation -t openapi-powerautomate-compat:validation .
+    docker run --rm -v "$(pwd)/build:/app/build" \
+      openapi-powerautomate-compat:validation
+    ```
+
+    This opt-in image includes the locked developer tools and Java. It runs
+    local validation but explicitly skips `paconn`. OpenAPI Generator may
+    download its configured JAR on first use; this is not part of conversion.
 
     **To convert from a specific branch:**
 
@@ -205,6 +250,12 @@ This will:
 ./scripts/download_fulcrum_api.sh
 ./scripts/convert_openapi.sh
 ./scripts/validate.sh
+
+# Local checks only, without contacting Power Platform
+./scripts/validate.sh --skip-paconn
+
+# Offline regression fixtures and dependency-tree assertions
+npm test
 ```
 
 ## Output Files

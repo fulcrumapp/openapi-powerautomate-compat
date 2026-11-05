@@ -27,6 +27,17 @@ When making changes to this repository, you **MUST** run the complete pipeline t
 ./scripts/run_pipeline.sh
 ```
 
+Install locked conversion tools with `npm ci --omit=dev --omit=optional` and
+`python3 -m pip install -r requirements.txt`. For local validation, use
+`npm ci --include=dev --omit=optional` and Java 11+, or build the Docker
+`validation` target. Run `npm test` for offline conversion regressions.
+
+Use `./scripts/run_pipeline.sh --skip-paconn` when Power Platform access is not
+authorized. This still runs all local validation; report that authenticated
+certification validation was not run. Do not log in or deploy implicitly.
+The default Docker image installs conversion dependencies only and still
+uses `--skip-validate`; the opt-in `validation` target uses `--skip-paconn`.
+
 ## Code Quality Standards
 
 This repository enforces strict quality standards:
@@ -77,6 +88,9 @@ The fulcrum-power-automate-connector.yaml file is ready for import into Power Au
 
 # Skip validation (just download and convert)
 ./scripts/run_pipeline.sh --skip-validate
+
+# Run all local validation without Power Platform requests
+./scripts/run_pipeline.sh --skip-paconn
 
 # Use a specific branch
 BRANCH=feature-branch ./scripts/run_pipeline.sh

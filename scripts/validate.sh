@@ -6,6 +6,28 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 WORK_DIR_DEFAULT="${REPO_ROOT}/build"
 WORK_DIR="${WORK_DIR:-${WORK_DIR_DEFAULT}}"
+TOOLS_DIR="${REPO_ROOT}/node_modules/.bin"
+SKIP_PACONN=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --skip-paconn)
+            SKIP_PACONN=true
+            shift
+            ;;
+        *)
+            echo "Unknown validation option: $1" >&2
+            exit 1
+            ;;
+    esac
+done
+
+for tool in swagger-cli openapi-generator-cli; do
+    if [[ ! -x "${TOOLS_DIR}/${tool}" ]]; then
+        echo "Error: ${tool} not installed. Run npm ci --include=dev --omit=optional in ${REPO_ROOT}." >&2
+        exit 1
+    fi
+done
 
 API_31_PATH="${WORK_DIR}/api-3.1.json"
 API_30_PATH="${WORK_DIR}/api-3.0.json"
@@ -87,14 +109,15 @@ echo ""
 
 # Step 5: Validate Swagger 2.0 with Swagger CLI
 echo "Step 5: Validating Swagger 2.0 specification..."
-echo "  (This may take a moment on first run as it installs swagger-cli)"
 echo ""
 
 pushd "${WORK_DIR}" >/dev/null
 
-if npm_config_yes=true npx swagger-cli validate "${SWAGGER_CLEAN_PATH##${WORK_DIR}/}" 2>&1 | grep -q "is valid"; then
+if SWAGGER_OUTPUT=$("${TOOLS_DIR}/swagger-cli" validate "${SWAGGER_CLEAN_PATH##${WORK_DIR}/}" 2>&1); then
+    echo "$SWAGGER_OUTPUT"
     echo -e "${GREEN}✓ Swagger 2.0 validation PASSED${NC}"
 else
+    echo "$SWAGGER_OUTPUT"
     echo -e "${RED}✗ Swagger 2.0 validation FAILED${NC}"
     VALIDATION_PASSED=false
 fi
@@ -145,24 +168,24 @@ echo ""
 
 # Step 9: Check for OpenAPI Generator warnings
 echo "Step 9: Checking for OpenAPI Generator warnings (treating warnings as errors)..."
-echo "  (This may take a moment on first run as it installs openapi-generator-cli)"
 echo ""
 
-OPENAPI_OUTPUT=$(npm_config_yes=true npx @openapitools/openapi-generator-cli validate -i "${SWAGGER_CLEAN_PATH}" 2>&1)
+OPENAPI_VALID=true
+if ! OPENAPI_OUTPUT=$("${TOOLS_DIR}/openapi-generator-cli" --openapitools "${REPO_ROOT}/openapitools.json" validate -i "${SWAGGER_CLEAN_PATH}" 2>&1); then
+    echo "$OPENAPI_OUTPUT"
+    echo -e "${RED}✗ OpenAPI Generator validation FAILED${NC}"
+    OPENAPI_VALID=false
+    VALIDATION_PASSED=false
+fi
 
-# Check if there are warnings (look for "Warnings:" followed by indented lines with tabs)
-if echo "$OPENAPI_OUTPUT" | grep -q "Warnings:"; then
-    WARNINGS_SECTION=$(echo "$OPENAPI_OUTPUT" | sed -n '/Warnings:/,/^\[/p')
-    # The warnings use tab indentation, so we look for lines starting with tab and hyphen
-    WARNINGS_COUNT=$(echo "$WARNINGS_SECTION" | grep -c "^	-" || echo "0")
-
-    echo -e "${RED}✗ Found ${WARNINGS_COUNT} warning(s) from OpenAPI Generator:${NC}"
-    echo ""
-    echo "$WARNINGS_SECTION"
+# Treat both recommendation sections and Java logger warnings as failures.
+if echo "$OPENAPI_OUTPUT" | grep -qE 'Warnings:|(^|[[:space:]])WARN([[:space:]]|$)'; then
+    echo -e "${RED}✗ OpenAPI Generator reported warnings:${NC}"
+    echo "$OPENAPI_OUTPUT"
     echo ""
     echo -e "${RED}Warnings are treated as errors. Please fix them before proceeding.${NC}"
     VALIDATION_PASSED=false
-else
+elif [ "$OPENAPI_VALID" = true ]; then
     echo -e "${GREEN}✓ No warnings found${NC}"
 fi
 echo ""
@@ -423,6 +446,9 @@ fi
 echo ""
 
 # Step 13: Run paconn validate
+if [ "$SKIP_PACONN" = true ]; then
+    echo "Step 13: paconn validation skipped (--skip-paconn); no Power Platform requests made."
+else
 echo "Step 13: Running Power Automate connector validation (paconn)..."
 echo "  (This validates the connector meets Power Automate certification requirements)"
 echo ""
@@ -509,6 +535,7 @@ if [ -n "$PACONN_CMD" ]; then
         echo -e "${GREEN}✓ paconn validation PASSED${NC}"
     fi
 fi
+fi
 echo ""
 
 popd >/dev/null
@@ -516,9 +543,15 @@ popd >/dev/null
 # Final Summary
 echo "================================================"
 if [ "$VALIDATION_PASSED" = true ]; then
-    echo -e "${GREEN}✓ ALL VALIDATIONS PASSED${NC}"
-    echo ""
-    echo "The ${SWAGGER_CLEAN_PATH} file is ready for import into Power Automate!"
+    if [ "$SKIP_PACONN" = true ]; then
+        echo -e "${GREEN}✓ ALL LOCAL VALIDATIONS PASSED (paconn not run)${NC}"
+        echo ""
+        echo "Generated connector passed local checks; authenticated certification was not run."
+    else
+        echo -e "${GREEN}✓ ALL VALIDATIONS PASSED${NC}"
+        echo ""
+        echo "The ${SWAGGER_CLEAN_PATH} file is ready for import into Power Automate!"
+    fi
     exit 0
 else
     echo -e "${RED}✗ VALIDATION FAILED${NC}"
