@@ -8,7 +8,7 @@ Converts OpenAPI 3.1 specifications to Swagger 2.0 format compatible with Micros
 
 ### Requirements
 
-- **Node.js 22+**, **Python 3.9+**, **Bash** and **curl** for conversion.
+- **Node.js 22+**, **Bash** and **curl** for conversion.
 - **Java 11+** for local OpenAPI Generator validation.
 - **paconn** only for authenticated Power Platform validation or deployment;
   it is not needed to generate the connector.
@@ -18,7 +18,6 @@ Converts OpenAPI 3.1 specifications to Swagger 2.0 format compatible with Micros
 ```bash
 # Conversion only: locked dependencies, no unused format adapters or validators
 npm ci --omit=dev --omit=optional
-python3 -m pip install -r requirements.txt
 ./scripts/run_pipeline.sh --skip-validate
 
 # Include developer tools when local validation is needed
@@ -30,6 +29,8 @@ npm ci --include=dev --omit=optional
 contacting Power Platform. The default pipeline still requires `paconn` and
 authentication for its final certification check. Install it separately with
 `python3 -m pip install paconn` only when that check or deployment is needed.
+Python is only needed for that optional CLI; conversion and local-only
+validation use Node.js and the existing `js-yaml` dependency, not pip or PyYAML.
 See the [Power Platform Connector CLI documentation](https://learn.microsoft.com/en-us/connectors/custom-connectors/paconn-cli).
 
 Conversion uses repository-local executables from `package-lock.json`; it
@@ -105,9 +106,12 @@ The conversion process performs these steps:
 
 1. **OpenAPI 3.1 → 3.0** - Downgrades using `@apiture/openapi-down-convert`
 2. **OpenAPI 3.0 → Swagger 2.0** - Converts using `api-spec-converter`
-3. **Swagger Cleanup** - Filters endpoints, removes unsupported features, and adds Power Automate metadata (`swagger_cleaner.py`)
-4. **Trigger Augmentation** - Adds Power Automate trigger extensions for webhooks (`trigger_augmenter.py`)
-5. **Certification Packaging** - Generates Microsoft certification artifacts (`certification_packager.py`)
+3. **Swagger Cleanup** - Filters endpoints, removes unsupported features, and
+   adds Power Automate metadata (`swagger_cleaner.cjs`)
+4. **Trigger Augmentation** - Adds Power Automate trigger extensions for
+   webhooks (`trigger_augmenter.cjs`)
+5. **Certification Packaging** - Generates Microsoft certification artifacts
+   (`certification_packager.cjs`)
 
 The download step recursively fetches referenced JSON/YAML schemas from the
 selected repository and branch, preserving paths beneath the specification
@@ -209,8 +213,9 @@ This will:
 
     This downloads the Fulcrum API and converts it to Power Automate compatible format. The results are written to `build/`.
 
-    The default image contains conversion dependencies only, not validation
-    CLIs, Java or `paconn`. Validation is skipped by default.
+    The default image uses a Node.js base and contains conversion dependencies
+    only, not Python, pip, validation CLIs, Java or `paconn`. Validation is
+    skipped by default.
 
     **For local validation in Docker (no Power Platform authentication):**
 
@@ -240,10 +245,11 @@ This will:
       openapi-powerautomate-compat
     ```
 
-    **To skip download (use existing spec):**
+    **To convert offline (use an existing spec and its external schemas):**
 
     ```bash
-    docker run -v "$(pwd)/build:/app/build" openapi-powerautomate-compat --skip-download
+    docker run --rm --network none -v "$(pwd)/build:/app/build" \
+      openapi-powerautomate-compat --skip-download
     ```
 
 ### Option 3: Running Scripts Directly
@@ -263,6 +269,28 @@ This will:
 # Offline regression fixtures and dependency-tree assertions
 npm test
 ```
+
+The transformation entry points use Node.js instead of the former Python
+scripts. Cleaner and trigger augmentation accept JSON or YAML (based on the
+input suffix) and retain that format in the output:
+
+```bash
+# Default output: swagger-2.0-cleaned.yaml; an explicit output is also supported
+node scripts/swagger_cleaner.cjs build/swagger-2.0.yaml
+node scripts/swagger_cleaner.cjs --list-endpoints build/swagger-2.0.yaml
+
+# Update in-place, or supply a second path to write a separate output
+node scripts/trigger_augmenter.cjs build/fulcrum-power-automate-connector.yaml
+
+# Generate the same three certification files from the connector and config
+node scripts/certification_packager.cjs \
+  build/fulcrum-power-automate-connector.yaml \
+  connector-config.yaml build/certified-connectors/Fulcrum
+```
+
+YAML formatting and JSON whitespace may differ from the former Python
+serialization; connector data, configured metadata and generated README
+content are unchanged.
 
 ## Output Files
 

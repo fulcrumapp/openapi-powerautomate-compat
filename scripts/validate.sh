@@ -96,15 +96,11 @@ echo ""
 
 # Step 4: Validate YAML structure
 echo "Step 4: Validating YAML structure..."
-if command -v python3 &> /dev/null; then
-    if python3 -c "import yaml; yaml.safe_load(open('${SWAGGER_CLEAN_PATH}'))" 2>/dev/null; then
-        echo -e "${GREEN}✓ ${SWAGGER_CLEAN_PATH} is valid YAML${NC}"
-    else
-        echo -e "${RED}✗ ${SWAGGER_CLEAN_PATH} is invalid YAML${NC}"
-        VALIDATION_PASSED=false
-    fi
+if node "${SCRIPT_DIR}/spec_io.cjs" "${SWAGGER_CLEAN_PATH}"; then
+    echo -e "${GREEN}✓ ${SWAGGER_CLEAN_PATH} is valid YAML${NC}"
 else
-    echo -e "${YELLOW}⚠ Python 3 not found, skipping YAML validation${NC}"
+    echo -e "${RED}✗ ${SWAGGER_CLEAN_PATH} is invalid YAML${NC}"
+    VALIDATION_PASSED=false
 fi
 echo ""
 

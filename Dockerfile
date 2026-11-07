@@ -1,22 +1,14 @@
-FROM public.ecr.aws/docker/library/python:3.9-slim-bookworm AS conversion
+FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS conversion
 
-# Prevent Python from writing .pyc files
-ENV PYTHONDONTWRITEBYTECODE=1
-
-# Install system dependencies (curl, gnupg, Node.js, jq)
-RUN apt-get update && apt-get install -y curl gnupg jq && \
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y nodejs && \
-    apt-get clean && \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl jq && \
     rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
 # Install only the locked conversion dependencies, not validators or unused formats.
-COPY package.json package-lock.json .npmrc requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt && \
-    npm ci --omit=dev --omit=optional && \
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci --omit=dev --omit=optional && \
     npm cache clean --force
 
 ENV PATH="/app/node_modules/.bin:${PATH}"

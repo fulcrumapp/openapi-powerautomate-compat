@@ -68,7 +68,7 @@ gettingStarted: |
 documentationUrl: https://developer.fulcrumapp.com
 
 # Swagger Cleaner Configuration
-# These settings control the swagger_cleaner.py transformation pipeline
+# These settings control the swagger_cleaner.cjs transformation pipeline
 swaggerCleaner:
   # Endpoints to keep in the cleaned specification
   # Format: "/path/method" (e.g., "/pets/get", "/users/{userId}/put")
