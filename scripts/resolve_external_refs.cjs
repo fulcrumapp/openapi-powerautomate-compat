@@ -4,6 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const refs = require('json-refs');
 const yaml = require('js-yaml');
+const { localSchemaFiles } = require('./schema_refs.cjs');
 
 async function main() {
   const [input, output] = process.argv.slice(2);
@@ -11,11 +12,16 @@ async function main() {
     throw new Error('Usage: node resolve_external_refs.cjs <input> <output>');
   }
   const result = await refs.resolveRefsAt(path.resolve(input), {
-    filter: ['relative', 'remote'],
+    filter: ['relative'],
     loaderOptions: {
+      prepareRequest(request, callback) {
+        callback(new Error('Remote schema requests are not supported'));
+      },
       processContent(response, callback) {
         try {
-          callback(null, yaml.load(response.text));
+          const document = yaml.load(response.text);
+          localSchemaFiles(document);
+          callback(null, document);
         } catch (error) {
           callback(error);
         }

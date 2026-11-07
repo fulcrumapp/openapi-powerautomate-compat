@@ -15,6 +15,8 @@ for tool in openapi-down-convert api-spec-converter; do
     fi
 done
 
+WORK_DIR=$(cd "${WORK_DIR}" && pwd)
+
 API_31_PATH="${WORK_DIR}/api-3.1.json"
 API_30_PATH="${WORK_DIR}/api-3.0.json"
 SWAGGER_PATH="${WORK_DIR}/swagger-2.0.yaml"
