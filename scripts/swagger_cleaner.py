@@ -275,7 +275,7 @@ def filter_endpoints(data: Dict[str, Any]) -> Dict[str, Any]:
 
 def find_used_models(data: Dict[str, Any]) -> set:
     """
-    Find all model names that are referenced in the specification.
+    Find models reachable from operations and other non-definition fields.
 
     Args:
         data: The parsed Swagger/OpenAPI specification
@@ -292,15 +292,18 @@ def find_used_models(data: Dict[str, Any]) -> set:
                 ref = obj["$ref"]
                 # Extract model name from reference like "#/definitions/ModelName"
                 if ref.startswith("#/definitions/"):
-                    model_name = ref.replace("#/definitions/", "")
-                    used_models.add(model_name)
+                    model_name = ref[len("#/definitions/"):].split("/")[0]
+                    model_name = model_name.replace("~1", "/").replace("~0", "~")
+                    if model_name not in used_models:
+                        used_models.add(model_name)
+                        extract_refs(data.get("definitions", {}).get(model_name, {}))
             for value in obj.values():
                 extract_refs(value)
         elif isinstance(obj, list):
             for item in obj:
                 extract_refs(item)
 
-    extract_refs(data)
+    extract_refs({key: value for key, value in data.items() if key != "definitions"})
     return used_models
 
 
