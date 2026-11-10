@@ -6,6 +6,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 WORK_DIR_DEFAULT="${REPO_ROOT}/build"
 WORK_DIR="${WORK_DIR:-${WORK_DIR_DEFAULT}}"
+WORK_DIR=$(cd "${WORK_DIR}" && pwd)
 TOOLS_DIR="${REPO_ROOT}/node_modules/.bin"
 SKIP_PACONN=false
 

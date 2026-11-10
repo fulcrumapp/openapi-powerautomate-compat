@@ -344,12 +344,15 @@ To test with a different API specification:
    REPO_NAME="your-repo"
    BRANCH="your-branch"
    API_SPEC_PATH="path/to/spec.json"
-   SCHEMAS_BASE_PATH="path/to/schemas"  # if external schemas exist
    ```
 
-2. Run the complete pipeline: `./scripts/run_pipeline.sh`
+2. Keep external schema references relative to their containing files and beneath
+   the specification directory. The download step fetches these recursively;
+   remote and absolute schema references are rejected.
 
-3. Document any new issues or required adjustments to the conversion pipeline
+3. Run the complete pipeline: `./scripts/run_pipeline.sh`
+
+4. Document any new issues or required adjustments to the conversion pipeline
 
 ## Modifying the Conversion Pipeline
 

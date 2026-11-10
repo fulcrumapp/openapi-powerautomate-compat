@@ -113,8 +113,14 @@ The conversion process performs these steps:
 5. **Certification Packaging** - Generates Microsoft certification artifacts
    (`certification_packager.cjs`)
 
-Before downgrading, `resolve_external_refs.cjs` resolves external JSON/YAML
-schemas relative to their containing files. Internal references remain
+The download step recursively fetches referenced JSON/YAML schemas from the
+selected repository and branch, preserving paths beneath the specification
+directory. A reference cannot select a different host or escape that directory.
+
+Before downgrading, `resolve_external_refs.cjs` resolves local external JSON/YAML
+schemas relative to their containing files. Remote URLs, protocol-relative
+URLs and absolute file references are rejected, including inside nested schemas;
+conversion never fetches remote references. Internal references remain
 references, including recursive models. Missing, invalid or circular external
 references fail explicitly instead of producing an incomplete package.
 External schemas therefore receive the same OpenAPI 3.1 downgrade as the
