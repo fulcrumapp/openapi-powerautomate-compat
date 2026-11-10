@@ -306,6 +306,19 @@ test('packager rejects missing required fields, connection fields and policy fie
   assert.equal(fs.existsSync(output), false);
 });
 
+test('packager rejects non-string versions before creating certification artifacts', t => {
+  const config = loadConfig();
+  const directory = temporaryDirectory(t);
+  for (const [index, version] of [1, true, ['1.0.0'], { value: '1.0.0' }].entries()) {
+    const output = path.join(directory, `package-${index}`);
+    assert.throws(() => packageConnector(
+      { swagger: '2.0', info: {} }, { ...config, version }, output, quiet),
+    /version.*must be a string/);
+    assert.equal(fs.existsSync(output), false);
+  }
+  assert.doesNotThrow(() => validateConfig({ ...config, version: '1' }));
+});
+
 test('packager emits the same three artifacts and overrides only packaged title/version', t => {
   const config = loadConfig();
   const input = {

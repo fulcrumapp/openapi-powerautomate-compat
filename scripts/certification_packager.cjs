@@ -13,6 +13,9 @@ function validateConfig(config) {
   if (missing.length) {
     throw new Error(`Missing required fields in connector-config.yaml: ${missing.join(', ')}`);
   }
+  if (typeof config.version !== 'string') {
+    throw new Error('Connector version in connector-config.yaml must be a string');
+  }
   for (const [name, parameter] of Object.entries(config.connectionParameters || {})) {
     for (const field of ['type', 'uiDefinition']) {
       if (!Object.hasOwn(parameter, field)) throw new Error(`Connection parameter '${name}' missing '${field}'`);
