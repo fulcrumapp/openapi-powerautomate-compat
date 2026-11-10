@@ -13,13 +13,15 @@ Key goals:
 ## Tech Stack
 
 ### Languages
+
 - **Bash** - Shell scripts for orchestration (`download_fulcrum_api.sh`, `convert_openapi.sh`, `validate.sh`)
 - **Node.js CommonJS** - Transformation logic (`swagger_cleaner.cjs`,
   `trigger_augmenter.cjs`, `certification_packager.cjs`)
 - **YAML/JSON** - OpenAPI specification formats
 
 ### Tools & Libraries
-- **Node.js 22.x** - Runtime for npm packages
+
+- **Node.js 22+** - Supported local runtime for npm packages
 - **@apiture/openapi-down-convert** - OpenAPI 3.1 → 3.0 conversion
 - **api-spec-converter** - OpenAPI 3.0 → Swagger 2.0 conversion
 - **@openapitools/openapi-generator-cli 7.18.0** - Specification validation
@@ -136,7 +138,8 @@ Key goals:
 
 ### Environment Requirements
 
-- Node.js 22.x for npm packages
+- Node.js 22+ for local execution
+- Docker uses Node.js 26.13.0 on Debian 13 (Trixie) from AWS ECR Public
 - Java 11+ for local validation; no Python or PyYAML needed
 - Bash shell (zsh compatible)
 - Optional: jq for JSON validation

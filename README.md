@@ -213,9 +213,11 @@ This will:
 
     This downloads the Fulcrum API and converts it to Power Automate compatible format. The results are written to `build/`.
 
-    The default image uses a Node.js base and contains conversion dependencies
-    only, not Python, pip, validation CLIs, Java or `paconn`. Validation is
-    skipped by default.
+    Both targets use Node.js 26.13.0 on Debian 13 (Trixie), pulled from
+    `public.ecr.aws/docker/library/node:26.13.0-trixie-slim` rather than
+    Docker Hub. The default image contains conversion dependencies only, not
+    Python, pip, validation CLIs, Java or `paconn`. Validation is skipped by
+    default. Local execution still supports Node.js 22+.
 
     **For local validation in Docker (no Power Platform authentication):**
 

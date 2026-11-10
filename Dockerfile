@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS conversion
+FROM public.ecr.aws/docker/library/node:26.13.0-trixie-slim AS conversion
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl jq && \
     rm -rf /var/lib/apt/lists/*

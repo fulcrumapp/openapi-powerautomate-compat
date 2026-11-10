@@ -40,6 +40,8 @@ The default Docker image installs conversion dependencies only and still
 uses `--skip-validate`; the opt-in `validation` target uses `--skip-paconn`.
 Both images use a Node base without Python. Only an explicitly installed
 `paconn` CLI may require Python for authenticated Power Platform operations.
+The Docker base is Node.js 26.13.0 on Debian 13 (Trixie), pulled exclusively
+from `public.ecr.aws/docker/library/node:26.13.0-trixie-slim`.
 
 ## Code Quality Standards
 
