@@ -1,0 +1,26 @@
+{
+  "name": "openapi-powerautomate-compat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fulcrum OpenAPI to Power Automate conversion pipeline",
+  "scripts": {
+    "test": "node --test",
+    "lint:markdown": "markdownlint '**/*.md' --ignore node_modules --ignore build"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@apiture/openapi-down-convert": "0.14.2",
+    "api-spec-converter": "2.12.0",
+    "commander": "2.20.3",
+    "js-yaml": "4.3.2",
+    "json-refs": "3.0.15",
+    "swagger2openapi": "2.9.4"
+  },
+  "devDependencies": {
+    "@openapitools/openapi-generator-cli": "2.42.0",
+    "markdownlint-cli": "0.45.0",
+    "swagger-cli": "4.0.4"
+  }
+}

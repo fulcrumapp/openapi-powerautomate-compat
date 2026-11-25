@@ -8,7 +8,7 @@
 # 3. Validate - Verify output meets all requirements
 #
 # Usage:
-#   ./scripts/run_pipeline.sh [--skip-download] [--skip-validate]
+#   ./scripts/run_pipeline.sh [--skip-download] [--skip-validate] [--skip-paconn]
 #
 # Environment Variables:
 #   BRANCH - Git branch to download from (default: v2)
@@ -26,6 +26,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Parse arguments
 SKIP_DOWNLOAD=false
 SKIP_VALIDATE=false
+VALIDATION_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -37,12 +38,17 @@ while [[ $# -gt 0 ]]; do
             SKIP_VALIDATE=true
             shift
             ;;
+        --skip-paconn)
+            VALIDATION_ARGS+=(--skip-paconn)
+            shift
+            ;;
         -h|--help)
-            echo "Usage: $0 [--skip-download] [--skip-validate]"
+            echo "Usage: $0 [--skip-download] [--skip-validate] [--skip-paconn]"
             echo ""
             echo "Options:"
             echo "  --skip-download  Skip the download step (use existing api-3.1.json)"
             echo "  --skip-validate  Skip the validation step"
+            echo "  --skip-paconn    Run local validation only (no Power Platform requests)"
             echo ""
             echo "Environment Variables:"
             echo "  BRANCH    Git branch to download from (default: v2)"
@@ -83,7 +89,7 @@ echo ""
 if [ "$SKIP_VALIDATE" = false ]; then
     echo "Step 3/3: Validating output..."
     echo "------------------------------------------------"
-    "${SCRIPT_DIR}/validate.sh"
+    "${SCRIPT_DIR}/validate.sh" "${VALIDATION_ARGS[@]}"
 else
     echo "Step 3/3: Validation skipped (--skip-validate)"
 fi

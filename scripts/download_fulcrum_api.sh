@@ -9,13 +9,13 @@ WORK_DIR_DEFAULT="${REPO_ROOT}/build"
 WORK_DIR="${WORK_DIR:-${WORK_DIR_DEFAULT}}"
 
 mkdir -p "${WORK_DIR}"
+WORK_DIR=$(cd "${WORK_DIR}" && pwd)
 
 # Configuration - all values can be overridden with environment variables
 REPO_OWNER="${REPO_OWNER:-fulcrumapp}"
 REPO_NAME="${REPO_NAME:-api}"
 BRANCH="${BRANCH:-v2}"
 API_SPEC_PATH="reference/rest-api.json"
-SCHEMAS_BASE_PATH="reference/components/schemas"
 OUTPUT_FILE="api-3.1.json"
 OUTPUT_PATH="${WORK_DIR}/${OUTPUT_FILE}"
 
@@ -32,7 +32,7 @@ RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}/
 
 # Download the main API spec file
 echo "Downloading main API specification..."
-curl -L -o "${OUTPUT_PATH}" "${RAW_URL}"
+curl --fail --location --output "${OUTPUT_PATH}" "${RAW_URL}"
 
 if [ ! -f "${OUTPUT_PATH}" ]; then
     echo "Error: Failed to download ${OUTPUT_PATH}"
@@ -51,41 +51,15 @@ if command -v jq &> /dev/null; then
     fi
 fi
 
-# Extract unique external schema references
 echo ""
 echo "Downloading external schema files..."
-COMPONENTS_DIR="${WORK_DIR}/components/schemas"
-mkdir -p "${COMPONENTS_DIR}"
-
-# Get list of external schema files referenced in the spec
-SCHEMA_FILES=$(grep -o '"\./components/schemas/[^"]*"' "${OUTPUT_PATH}" | sort -u | sed 's/"//g' | sed 's|./components/schemas/||')
-
-if [ -z "$SCHEMA_FILES" ]; then
-    echo "No external schema files found"
-else
-    SCHEMA_COUNT=0
-    for schema_file in $SCHEMA_FILES; do
-        SCHEMA_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}/${SCHEMAS_BASE_PATH}/${schema_file}"
-        OUTPUT_SCHEMA_PATH="${COMPONENTS_DIR}/${schema_file}"
-
-        if curl -f -s -L -o "${OUTPUT_SCHEMA_PATH}" "${SCHEMA_URL}"; then
-            SCHEMA_COUNT=$((SCHEMA_COUNT + 1))
-            echo "  ✓ ${schema_file}"
-        else
-            echo "  ✗ Failed to download ${schema_file}"
-            exit 1
-        fi
-    done
-    echo "✓ Downloaded ${SCHEMA_COUNT} schema files"
-fi
+node "${SCRIPT_DIR}/download_schemas.cjs" "${OUTPUT_PATH}" "${RAW_URL}"
 
 echo ""
 echo "✓ Download complete!"
 echo ""
 echo "Files downloaded:"
 echo "  - ${OUTPUT_PATH}"
-if [ -n "$SCHEMA_FILES" ]; then
-    echo "  - ${SCHEMA_COUNT} schema files in ${COMPONENTS_DIR}/"
-fi
+echo "  - Referenced schema files alongside the specification"
 echo ""
 echo "Ready to convert! Run ./convert_openapi.sh to proceed."

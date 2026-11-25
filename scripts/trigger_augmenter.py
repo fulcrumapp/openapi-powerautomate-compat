@@ -247,6 +247,19 @@ def augment_spec(data: Dict[str, Any]) -> tuple[bool, list[str]]:
     if "paths" not in data:
         return False, ["Error: No paths found in specification"]
 
+    # External request schemas are inlined by reference resolution.
+    webhook_schemas = []
+    webhook_post = data["paths"].get("/v2/webhooks.json", {}).get("post", {})
+    for parameter in webhook_post.get("parameters", []):
+        schema = parameter.get("schema", {})
+        if parameter.get("in") == "body" and "webhook" in schema.get("properties", {}):
+            definitions = data.setdefault("definitions", {})
+            if "WebhookRequest" not in definitions:
+                definitions["WebhookRequest"] = schema
+                parameter["schema"] = {"$ref": "#/definitions/WebhookRequest"}
+            else:
+                webhook_schemas.append(schema)
+
     # Augment the webhook registration endpoint
     success, endpoint_messages = augment_webhook_endpoint(data["paths"])
     messages.extend(endpoint_messages)
@@ -267,9 +280,10 @@ def augment_spec(data: Dict[str, Any]) -> tuple[bool, list[str]]:
     data["definitions"]["FulcrumWebhookPayload"] = create_webhook_payload_schema()
     messages.append("Added FulcrumWebhookPayload schema to definitions")
 
-    # Augment WebhookRequest schema if it exists to mark the URL field
+    # Mark callback fields on both named and inline request schemas.
     if "WebhookRequest" in data["definitions"]:
-        webhook_req = data["definitions"]["WebhookRequest"]
+        webhook_schemas.append(data["definitions"]["WebhookRequest"])
+    for webhook_req in webhook_schemas:
         if (
             "properties" in webhook_req
             and "webhook" in webhook_req["properties"]
@@ -279,12 +293,16 @@ def augment_spec(data: Dict[str, Any]) -> tuple[bool, list[str]]:
             
             # Augment URL field
             if "url" in webhook_props:
+                webhook = webhook_req["properties"]["webhook"]
+                if "url" not in webhook.setdefault("required", []):
+                    webhook["required"].append("url")
+                webhook.pop("minProperties", None)
                 url_prop = webhook_props["url"]
                 url_prop["x-ms-notification-url"] = True
                 url_prop["x-ms-visibility"] = "internal"
                 if "x-ms-summary" not in url_prop:
                     url_prop["x-ms-summary"] = "Callback URL"
-                messages.append("Augmented WebhookRequest.webhook.url with x-ms-notification-url")
+                messages.append("Augmented webhook.url with x-ms-notification-url")
             
             # Add default value to name field
             if "name" in webhook_props:
@@ -292,7 +310,7 @@ def augment_spec(data: Dict[str, Any]) -> tuple[bool, list[str]]:
                 name_prop["default"] = "Power Platform Trigger"
                 if "x-ms-summary" not in name_prop:
                     name_prop["x-ms-summary"] = "Webhook Name"
-                messages.append("Added default value to WebhookRequest.webhook.name")
+                messages.append("Added default value to webhook.name")
 
     return True, messages
 

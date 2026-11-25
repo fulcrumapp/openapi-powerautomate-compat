@@ -73,7 +73,8 @@ Key goals:
 ### Testing Strategy
 
 **Validation-Based Testing:**
-- No unit test framework; validation is the test suite
+- `npm test` uses Node's built-in test runner for offline conversion fixtures
+  and installed dependency-tree checks; no additional test framework is needed.
 - `validate.sh` performs comprehensive checks:
   - File existence and size validation
   - JSON/YAML structure validation
@@ -145,12 +146,17 @@ Key goals:
   - Path: `reference/rest-api.json`
   - Schemas: `reference/components/schemas/*.json`
 
-### npm Packages (via npx)
+### npm Packages (locked local executables)
 
-- `@apiture/openapi-down-convert` - 3.1→3.0 conversion
-- `api-spec-converter` - 3.0→2.0 conversion
-- `@openapitools/openapi-generator-cli` - Validation
-- `swagger-cli` - Swagger validation
+- `npm ci --omit=dev --omit=optional` installs conversion dependencies.
+- `@apiture/openapi-down-convert` - 3.1→3.0 conversion.
+- `api-spec-converter` - 3.0→2.0 conversion.
+- `swagger2openapi` - Explicit dependency required to register both formats.
+- `commander` - Shared compatible CLI dependency for the converter and z-schema.
+- Validation and Markdown tools are development dependencies installed with
+  `npm ci --include=dev --omit=optional`.
+- The default Docker image excludes development tools. The `validation` target
+  includes them and Java, and runs with `--skip-paconn` for local checks only.
 
 ### Python Packages
 
