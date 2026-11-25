@@ -404,3 +404,28 @@ test('downloader reports HTTP failures instead of reusing stale schemas', async 
   await assert.rejects(downloadSchemas(path.join(workDir, 'api-3.1.json'),
     `${base}/reference/rest-api.json`), /Failed to download.*HTTP 404/);
 });
+
+test('resolver rejects relative references that leave the specification directory', t => {
+  const workDir = createFixture(t);
+  const specDir = path.join(workDir, 'spec');
+  const nestedDir = path.join(specDir, 'components', 'schemas');
+  fs.mkdirSync(nestedDir, { recursive: true });
+  fs.writeFileSync(path.join(workDir, 'outside.json'), JSON.stringify({ type: 'string' }));
+  const rootSpec = path.join(specDir, 'api-3.1.json');
+  const outputSpec = path.join(workDir, 'resolved.json');
+  fs.writeFileSync(rootSpec, JSON.stringify({ $ref: '../outside.json' }));
+  const resolverPath = path.resolve(__dirname, '..', 'scripts', 'resolve_external_refs.cjs');
+  const rootRun = spawnSync('node', [resolverPath, rootSpec, outputSpec], {
+    encoding: 'utf8',
+  });
+  assert.notEqual(rootRun.status, 0);
+  assert.match(rootRun.stderr, /leaves the specification directory/);
+
+  fs.writeFileSync(path.join(nestedDir, 'nested.json'), JSON.stringify({ $ref: '../../../outside.json' }));
+  fs.writeFileSync(rootSpec, JSON.stringify({ $ref: './components/schemas/nested.json' }));
+  const nestedRun = spawnSync('node', [resolverPath, rootSpec, outputSpec], {
+    encoding: 'utf8',
+  });
+  assert.notEqual(nestedRun.status, 0);
+  assert.match(nestedRun.stderr, /leaves the specification directory/);
+});

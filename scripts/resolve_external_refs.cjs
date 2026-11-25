@@ -11,7 +11,9 @@ async function main() {
   if (!input || !output) {
     throw new Error('Usage: node resolve_external_refs.cjs <input> <output>');
   }
-  const result = await refs.resolveRefsAt(path.resolve(input), {
+  const inputPath = path.resolve(input);
+  const root = path.dirname(inputPath);
+  const result = await refs.resolveRefsAt(inputPath, {
     filter: ['relative'],
     loaderOptions: {
       prepareRequest(request, callback) {
@@ -19,8 +21,15 @@ async function main() {
       },
       processContent(response, callback) {
         try {
+          const currentFile = path.resolve(response.location || inputPath);
           const document = yaml.load(response.text);
-          localSchemaFiles(document);
+          for (const reference of localSchemaFiles(document)) {
+            const target = path.resolve(path.dirname(currentFile), reference);
+            const relative = path.relative(root, target);
+            if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+              throw new Error(`Schema reference leaves the specification directory: ${reference}`);
+            }
+          }
           callback(null, document);
         } catch (error) {
           callback(error);
