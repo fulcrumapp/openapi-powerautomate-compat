@@ -79,8 +79,10 @@ SCHEMAS_BASE_PATH="path/to/schemas"       # Path to external schemas (optional)
 
 - bash shell
 - curl
-- Node.js and npm (for conversion tools)
-- Python 3 with PyYAML (for cleanup script)
+- Node.js 22+ and npm (for conversion and transformation tools)
+- Java 11+ for local OpenAPI Generator validation
+- paconn only for explicitly authorized authenticated validation; use
+  `--skip-paconn` for local checks
 - (Optional) jq for JSON validation
 
 ## Pipeline Steps
@@ -169,15 +171,15 @@ If conversion fails:
 2. Check that Node.js packages are available:
 
    ```bash
-   npx @apiture/openapi-down-convert --version
-   npx api-spec-converter --version
+   ./node_modules/.bin/openapi-down-convert --version
+   ./node_modules/.bin/api-spec-converter --version
    ```
 
-3. Verify Python and PyYAML are installed:
+3. Install missing locked dependencies and check YAML syntax with Node:
 
    ```bash
-   python3 --version
-   python3 -c "import yaml; print(yaml.__version__)"
+   npm ci --omit=dev --omit=optional
+   node scripts/spec_io.cjs build/swagger-2.0.yaml
    ```
 
 ### Validation Issues

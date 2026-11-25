@@ -339,7 +339,7 @@ The certification packager SHALL generate policy template instances in `apiPrope
 The certification packager SHALL validate connection parameter configuration before generating output files.
 
 #### Scenario: Required fields validation
-- **WHEN** `validate_config()` is called
+- **WHEN** the certification packager validates configuration
 - **AND** `connector-config.yaml` contains a `connectionParameters` section
 - **THEN** validation SHALL check each parameter has a `type` field
 - **AND** validation SHALL check each parameter has a `uiDefinition` field
@@ -365,7 +365,7 @@ The certification packager SHALL validate connection parameter configuration bef
 The certification packager SHALL validate policy template configuration before generating output files.
 
 #### Scenario: Required policy template fields validation
-- **WHEN** `validate_config()` is called
+- **WHEN** the certification packager validates configuration
 - **AND** `connector-config.yaml` contains a `policyTemplates` section
 - **THEN** validation SHALL check each template has a `templateId` field
 - **AND** validation SHALL check each template has a `parameters` field
@@ -484,4 +484,3 @@ The README SHALL document how to configure the connector version independently f
 - **WHEN** the README shows connector-config.yaml example
 - **THEN** it SHALL include the `version` field as a required parameter
 - **AND** SHALL show the format clearly (e.g., `version: "1.0.0"`)
-
